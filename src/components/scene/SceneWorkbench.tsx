@@ -82,8 +82,19 @@ const initialState: SceneState = {
   error: null,
 };
 
+interface SaveResult {
+  outputPath: string;
+  folderName: string;
+  successCount: number;
+  failedCount: number;
+  totalImages: number;
+}
+
 export default function SceneWorkbench() {
   const [state, setState] = useState<SceneState>(initialState);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 更新产品图
   const addProductImage = useCallback((image: UploadedImage) => {
@@ -153,6 +164,7 @@ export default function SceneWorkbench() {
 
   // 生成提示词（使用 Mock 或 Gemini）
   const handleGeneratePrompt = useCallback(async () => {
+    console.log('>>> handleGeneratePrompt called');
     setState(prev => ({ ...prev, isGeneratingPrompt: true, error: null }));
 
     try {
@@ -355,8 +367,55 @@ export default function SceneWorkbench() {
   // 替换到主流程
   const handleReplaceToMainFlow = useCallback((image: GeneratedSceneImage) => {
     console.log('Replace to main flow:', image.id);
-    alert('此功能将在 Phase 4 实现');
+    alert('此功能将在后续版本实现');
   }, []);
+
+  // 保存到本地
+  const handleSaveToLocal = useCallback(async () => {
+    if (state.history.length === 0) {
+      alert('没有可保存的图片');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const response = await fetch('/api/scene/save-results', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productName: state.productInfo.name || 'unnamed_product',
+          productInfo: state.productInfo,
+          history: state.history,
+          productImages: state.productImages,
+          config: {
+            promptMode: state.promptMode,
+            outputSize: state.outputSize,
+            styleStrength: state.styleStrength,
+            referenceWeight: state.referenceWeight,
+            platform: state.platform,
+            imageModel: state.imageModel,
+            selectedTags: state.selectedTags,
+          },
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || '保存失败');
+      }
+
+      setSaveResult(data);
+      console.log('✅ Scene saved to:', data.folderName);
+    } catch (error) {
+      console.error('Save failed:', error);
+      setSaveError(error instanceof Error ? error.message : '保存失败');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [state.history, state.productInfo, state.productImages, state.promptMode, state.outputSize, state.styleStrength, state.referenceWeight, state.platform, state.imageModel, state.selectedTags]);
 
   // 高级选项
   const setOutputSize = useCallback((size: string) => {
@@ -467,6 +526,11 @@ export default function SceneWorkbench() {
             platform={state.platform}
             imageModel={state.imageModel}
             hasProductImages={state.productImages.length > 0}
+            isSaving={isSaving}
+            saveResult={saveResult}
+            saveError={saveError}
+            onSaveToLocal={handleSaveToLocal}
+            onClearSaveError={() => setSaveError(null)}
           />
         </div>
       </div>

@@ -97,6 +97,14 @@ function HistoryItem({
   );
 }
 
+interface SaveResult {
+  outputPath: string;
+  folderName: string;
+  successCount: number;
+  failedCount: number;
+  totalImages: number;
+}
+
 interface ScenePreviewProps {
   // 生成状态
   isGenerating: boolean;
@@ -119,6 +127,12 @@ interface ScenePreviewProps {
   imageModel: string;
   // 是否有产品图（决定使用图生图还是文生图）
   hasProductImages?: boolean;
+  // 保存功能
+  isSaving?: boolean;
+  saveResult?: SaveResult | null;
+  saveError?: string | null;
+  onSaveToLocal?: () => void;
+  onClearSaveError?: () => void;
 }
 
 export default function ScenePreview({
@@ -136,6 +150,11 @@ export default function ScenePreview({
   platform,
   imageModel,
   hasProductImages = false,
+  isSaving = false,
+  saveResult = null,
+  saveError = null,
+  onSaveToLocal,
+  onClearSaveError,
 }: ScenePreviewProps) {
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   // 预览的图片对象（用于模态框显示和下载）
@@ -336,6 +355,64 @@ export default function ScenePreview({
           </div>
         )}
       </div>
+
+      {/* 保存到本地 */}
+      {history.length > 0 && onSaveToLocal && (
+        <div className="border-t border-border pt-4 mt-4">
+          {/* 保存结果提示 */}
+          {saveResult && (
+            <div className="mb-3 p-3 bg-green-600/10 rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-green-400">
+                <span>✓</span>
+                <span>已保存到：{saveResult.folderName}</span>
+              </div>
+              <div className="text-xs text-muted mt-1">
+                成功 {saveResult.successCount}/{saveResult.totalImages} 张
+              </div>
+            </div>
+          )}
+
+          {/* 保存错误提示 */}
+          {saveError && (
+            <div className="mb-3 p-3 bg-red-500/10 rounded-lg flex items-center justify-between">
+              <span className="text-sm text-red-400">❌ {saveError}</span>
+              {onClearSaveError && (
+                <button
+                  onClick={onClearSaveError}
+                  className="text-xs text-red-400 hover:text-red-300"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* 保存按钮 */}
+          {!saveResult && (
+            <button
+              onClick={onSaveToLocal}
+              disabled={isSaving}
+              className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {isSaving ? (
+                <>
+                  <span className="animate-spin">⏳</span>
+                  保存中...
+                </>
+              ) : (
+                <>
+                  <span>💾</span>
+                  保存到本地（{history.length}张图片）
+                </>
+              )}
+            </button>
+          )}
+
+          <p className="text-xs text-muted text-center mt-2">
+            保存到 output/{'{产品名}'}_{'{时间}'}_scene/ 文件夹
+          </p>
+        </div>
+      )}
 
       {/* 图片预览模态框 */}
       {previewingImage && (
