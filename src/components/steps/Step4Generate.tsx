@@ -64,6 +64,12 @@ export default function Step4Generate() {
     return prompts.filter(p => enabledTypes[p.type]);
   }, [prompts, enabledTypes]);
 
+  // 检测哪些启用的类型缺少 Prompt（需要返回 Step3 生成）
+  const missingPromptTypes = useMemo(() => {
+    const promptTypeIds = new Set(prompts.map(p => p.type));
+    return ALL_IMAGE_TYPES.filter(t => enabledTypes[t.id] && !promptTypeIds.has(t.id));
+  }, [prompts, enabledTypes]);
+
   // 初始化 images（只为启用类型）
   useEffect(() => {
     if (enabledPrompts.length > 0 && images.length === 0) {
@@ -149,8 +155,11 @@ export default function Step4Generate() {
 
     setIsGenerating(true);
 
-    // 并发控制：同时最多5个
-    const concurrency = 5;
+    // 并发控制：DashScope 限制为 2，OpenRouter 保持 5
+    const isDashScope = isDashScopeModel(selectedModel);
+    const concurrency = isDashScope ? 2 : 5;
+    const delayBetweenBatches = isDashScope ? 1500 : 0; // DashScope 每批之间延迟 1.5 秒
+
     const pendingPromptIds = enabledPrompts
       .filter(p => {
         const img = images.find(i => i.promptId === p.id);
@@ -161,6 +170,11 @@ export default function Step4Generate() {
     for (let i = 0; i < pendingPromptIds.length; i += concurrency) {
       const batch = pendingPromptIds.slice(i, i + concurrency);
       await Promise.all(batch.map(id => generateSingleImage(id)));
+
+      // DashScope 模型在每批之间添加延迟，避免触发限流
+      if (isDashScope && i + concurrency < pendingPromptIds.length) {
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+      }
     }
 
     setIsGenerating(false);
@@ -392,26 +406,40 @@ export default function Step4Generate() {
             </div>
             <div className="text-xs text-muted mt-1">
               {isDashScopeModel(selectedModel) ? (
-                <span className="text-primary">使用百炼平台</span>
+                <span className="text-primary">使用百炼平台（并发2，较慢但免费）</span>
               ) : (
-                <span>使用 OpenRouter</span>
+                <span>使用 OpenRouter（并发5）</span>
               )}
             </div>
           </div>
         </div>
 
+        {/* 缺少 Prompt 的警告 */}
+        {missingPromptTypes.length > 0 && (
+          <div className="mt-3 p-3 bg-warning/10 border border-warning/30 rounded-lg">
+            <div className="text-sm text-warning">
+              ⚠️ 以下类型尚未生成 Prompt，请返回 Step 3 重新生成：
+              <span className="font-bold ml-1">
+                {missingPromptTypes.map(t => t.name).join('、')}
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* 生成按钮和进度 */}
         <div className="mt-4 flex items-center gap-4">
           <button
             onClick={generateAllImages}
-            disabled={isGenerating || enabledTypeCount === 0}
+            disabled={isGenerating || enabledTypeCount === 0 || missingPromptTypes.length > 0}
             className="px-6 py-3 bg-primary text-background rounded-lg font-bold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {enabledTypeCount === 0
               ? '请至少选择一个图片类型'
-              : isGenerating
-                ? '生成中...'
-                : `🎨 开始生成全部图片（${totalImageCount}张）`
+              : missingPromptTypes.length > 0
+                ? '请先返回 Step3 生成缺少的 Prompt'
+                : isGenerating
+                  ? '生成中...'
+                  : `🎨 开始生成全部图片（${totalImageCount}张）`
             }
           </button>
 
