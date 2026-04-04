@@ -274,11 +274,22 @@ export default function Step4Generate() {
                     )}
 
                     {image.status === 'completed' && image.url && (
-                      <img
-                        src={image.url}
-                        alt={`${prompt?.typeName} ${prompt?.index}`}
-                        className="w-full h-full object-cover"
-                      />
+                      <div className="group relative w-full h-full">
+                        <img
+                          src={image.url}
+                          alt={`${prompt?.typeName} ${prompt?.index}`}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* 悬停遮罩和重新生成按钮 */}
+                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button
+                            onClick={() => handleGenerateSingle(image.promptId)}
+                            className="px-3 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors flex items-center gap-1"
+                          >
+                            🔄 重新生成
+                          </button>
+                        </div>
+                      </div>
                     )}
 
                     {image.status === 'failed' && (
