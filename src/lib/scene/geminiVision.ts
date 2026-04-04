@@ -3,6 +3,12 @@
  * 通过 OpenRouter 调用 Gemini 模型分析产品图片
  */
 
+// Gemini 模型配置（按优先级排序）
+const GEMINI_MODELS = [
+  'google/gemini-2.5-flash',        // 优先：便宜快速
+  'google/gemini-2.0-flash-001',    // 备选
+];
+
 export interface GeminiAnalysisInput {
   // 产品图片 base64
   productImageBase64: string;
@@ -116,19 +122,17 @@ Respond with valid JSON only. No markdown, no explanations.`;
 }
 
 /**
- * 调用 Gemini Vision API（通过 OpenRouter）
+ * 调用单个 Gemini 模型
  */
-export async function analyzeWithGemini(
+async function callGeminiModel(
+  model: string,
   input: GeminiAnalysisInput,
   apiKey: string
-): Promise<GeminiAnalysisOutput> {
+): Promise<{ content: string; model: string }> {
   const systemPrompt = buildGeminiSystemPrompt();
   const userPrompt = buildGeminiUserPrompt(input);
 
-  console.log('\n========== GEMINI VISION ANALYSIS ==========');
-  console.log('Product Name:', input.productName);
-  console.log('Scene Tags:', input.sceneTags.join(', '));
-  console.log('Style Tags:', input.styleTags.join(', '));
+  console.log(`>>> Trying Gemini model: ${model}`);
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -139,7 +143,7 @@ export async function analyzeWithGemini(
       'X-Title': 'Product Image AI - Scene Workbench',
     },
     body: JSON.stringify({
-      model: 'google/gemini-2.0-flash-exp:free',
+      model,
       messages: [
         { role: 'system', content: systemPrompt },
         {
@@ -155,30 +159,68 @@ export async function analyzeWithGemini(
           ],
         },
       ],
-      temperature: 0.3, // 降低温度以获得更精确的描述
+      temperature: 0.3,
       max_tokens: 2000,
     }),
   });
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw new Error(`Gemini API error: ${error.error?.message || response.statusText}`);
+    throw new Error(`${model} failed: ${error.error?.message || response.statusText}`);
   }
 
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content;
 
+  if (!content) {
+    throw new Error(`${model} returned empty response`);
+  }
+
+  return { content, model };
+}
+
+/**
+ * 调用 Gemini Vision API（带 fallback）
+ */
+export async function analyzeWithGemini(
+  input: GeminiAnalysisInput,
+  apiKey: string
+): Promise<GeminiAnalysisOutput> {
+  console.log('\n========== GEMINI VISION ANALYSIS ==========');
+  console.log('Product Name:', input.productName || '(empty)');
+  console.log('Scene Tags:', input.sceneTags.join(', ') || '(none)');
+  console.log('Style Tags:', input.styleTags.join(', ') || '(none)');
+
+  let content: string = '';
+  let usedModel: string = '';
+  let lastError: Error | null = null;
+
+  // 依次尝试每个模型
+  for (const model of GEMINI_MODELS) {
+    try {
+      const result = await callGeminiModel(model, input, apiKey);
+      content = result.content;
+      usedModel = result.model;
+      console.log(`✅ Success with model: ${model}`);
+      break;
+    } catch (error) {
+      console.error(`❌ Failed with ${model}:`, error instanceof Error ? error.message : error);
+      lastError = error instanceof Error ? error : new Error(String(error));
+    }
+  }
+
+  // 如果所有模型都失败，使用 fallback
+  if (!content) {
+    console.warn('\n⚠️ All Gemini models failed, using fallback prompt...');
+    return buildFallbackOutput(input, lastError?.message || 'All models failed');
+  }
+
   console.log('\n---------- GEMINI RAW RESPONSE ----------');
   console.log(content);
   console.log('---------- END GEMINI RESPONSE ----------\n');
 
-  if (!content) {
-    throw new Error('Gemini returned empty response');
-  }
-
   // 解析 JSON 响应
   try {
-    // 清理可能的 markdown 代码块
     const cleanContent = content
       .replace(/```json\s*/gi, '')
       .replace(/```\s*/g, '')
@@ -189,7 +231,6 @@ export async function analyzeWithGemini(
     const productLockDescription = parsed.productLockDescription || '';
     const sceneDescription = input.sceneTags.length > 0 ? input.sceneTags.join(', ') : 'elegant studio setting';
 
-    // 构建最终 Prompt（新结构）
     const finalPrompt = buildFinalPrompt(
       input.productName,
       productLockDescription,
@@ -217,36 +258,73 @@ export async function analyzeWithGemini(
         structure: '',
         proportions: '',
       },
-      model: 'gemini-2.0-flash-exp',
+      model: usedModel,
       timestamp: Date.now(),
     };
   } catch {
-    console.warn('Failed to parse Gemini response as JSON, using raw content');
-
-    // 回退处理
-    const fallbackPrompt = buildFinalPrompt(
-      input.productName,
-      content,
-      input.sceneTags.join(', ') || 'studio',
-      input.styleTags
-    );
-
-    return {
-      productLockDescription: content,
-      prompt: fallbackPrompt,
-      negativePrompt: 'deformed product, stretched product, wrong proportions, different product',
-      productAnalysis: {
-        appearance: 'Analysis not available',
-        colors: 'Unknown',
-        material: 'Unknown',
-        shape: 'Unknown',
-        structure: 'Unknown',
-        proportions: 'Unknown',
-      },
-      model: 'gemini-2.0-flash-exp',
-      timestamp: Date.now(),
-    };
+    console.warn('Failed to parse Gemini response as JSON, using fallback...');
+    return buildFallbackOutput(input, 'JSON parse failed');
   }
+}
+
+/**
+ * 构建 Fallback 输出（当 Gemini 失败时）
+ * 关键：必须使用产品名称！
+ */
+function buildFallbackOutput(
+  input: GeminiAnalysisInput,
+  errorReason: string
+): GeminiAnalysisOutput {
+  const { productName, productCategory, productDescription, sceneTags, styleTags } = input;
+
+  // 构建产品描述部分 - 必须使用产品名称！
+  const productNamePart = productName
+    ? `"${productName}"`
+    : productCategory
+    ? `A ${productCategory} product`
+    : 'A product';
+
+  const productDescPart = productDescription
+    ? `. ${productDescription}`
+    : '';
+
+  // Fallback 的产品锁定描述
+  const fallbackProductLock = `${productNamePart}${productDescPart}. A high-quality product with precise proportions and professional finish. Maintain exact shape, colors, and proportions as shown.`;
+
+  const sceneDescription = sceneTags.length > 0 ? sceneTags.join(', ') : 'elegant studio setting';
+
+  const finalPrompt = buildFinalPrompt(
+    productName,
+    fallbackProductLock,
+    sceneDescription,
+    styleTags
+  );
+
+  const negativePrompt = 'deformed product, stretched product, wrong proportions, different product, distorted shape, modified design, warped, squished, elongated, redesigned product, incorrect colors, wrong material';
+
+  console.log('\n========== FALLBACK PROMPT (Gemini failed) ==========');
+  console.log(`Reason: ${errorReason}`);
+  console.log('\n--- FINAL PROMPT ---');
+  console.log(finalPrompt);
+  console.log('\n--- NEGATIVE PROMPT ---');
+  console.log(negativePrompt);
+  console.log('============================================\n');
+
+  return {
+    productLockDescription: fallbackProductLock,
+    prompt: finalPrompt,
+    negativePrompt,
+    productAnalysis: {
+      appearance: 'Fallback - Gemini analysis not available',
+      colors: 'Unknown',
+      material: 'Unknown',
+      shape: 'Unknown',
+      structure: 'Unknown',
+      proportions: 'Unknown',
+    },
+    model: `fallback (${errorReason})`,
+    timestamp: Date.now(),
+  };
 }
 
 /**
@@ -275,18 +353,26 @@ Must maintain exact proportions, colors, shape, texture, and structure. No stret
 export async function analyzeWithGeminiMock(
   input: GeminiAnalysisInput
 ): Promise<GeminiAnalysisOutput> {
-  // 模拟 API 延迟
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
 
-  const mockProductLock = `A three-tiered decorative display stand with a cactus-inspired design. The structure consists of three circular ceramic plates stacked vertically, each plate being flat and round with a matte finish. The bottom tier is the largest (approximately 12 inches diameter), the middle tier is medium-sized (approximately 8 inches), and the top tier is the smallest (approximately 5 inches). The plates are connected by a central vertical post designed to look like a green cactus stem with simplified arm branches. The ceramic plates appear to be in a warm terracotta or coral pink color with a subtle matte texture. The overall height-to-width ratio is approximately 1.5:1, making it taller than wide.`;
+  const { productName, productCategory, sceneTags, styleTags } = input;
 
-  const sceneDescription = input.sceneTags.join(', ') || 'elegant studio setting';
+  // Mock 也必须使用产品名称！
+  const productNamePart = productName
+    ? `"${productName}"`
+    : productCategory
+    ? `A ${productCategory} product`
+    : 'A product';
+
+  const mockProductLock = `${productNamePart} - A three-tiered decorative display stand with a cactus-inspired design. The structure consists of three circular ceramic plates stacked vertically, each plate being flat and round with a matte finish. The bottom tier is the largest (approximately 12 inches diameter), the middle tier is medium-sized (approximately 8 inches), and the top tier is the smallest (approximately 5 inches). The plates are connected by a central vertical post designed to look like a green cactus stem with simplified arm branches. The ceramic plates appear to be in a warm terracotta or coral pink color with a subtle matte texture. The overall height-to-width ratio is approximately 1.5:1, making it taller than wide.`;
+
+  const sceneDescription = sceneTags.join(', ') || 'elegant studio setting';
 
   const finalPrompt = buildFinalPrompt(
-    input.productName,
+    productName,
     mockProductLock,
     sceneDescription,
-    input.styleTags
+    styleTags
   );
 
   const negativePrompt = 'deformed product, stretched product, wrong proportions, different product, distorted shape, modified design, warped';
