@@ -9,6 +9,9 @@ import {
   calculateEstimatedCost,
   getCoreTypes,
   getAdditionalTypes,
+  isDashScopeModel,
+  isFreeTierModel,
+  formatCostDisplay,
 } from '@/types';
 
 export default function Step4Generate() {
@@ -325,17 +328,26 @@ export default function Step4Generate() {
         <div className="flex flex-wrap gap-4 items-center">
           {/* AI 模型选择 */}
           <div>
-            <label className="block text-xs text-muted mb-1">AI模型</label>
+            <label className="block text-xs text-muted mb-1">图片生成模型</label>
             <select
               value={selectedModel}
               onChange={(e) => setSelectedModel(e.target.value)}
-              className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground min-w-[220px]"
+              className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground min-w-[260px]"
             >
-              {IMAGE_MODEL_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label} (${option.pricePerImage}/张)
-                </option>
-              ))}
+              <optgroup label="百炼（DashScope）- 有免费额度">
+                {IMAGE_MODEL_OPTIONS.filter(m => m.provider === 'dashscope').map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} {option.isFree ? '(免费)' : `($${option.pricePerImage}/张)`}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="OpenRouter（FLUX）">
+                {IMAGE_MODEL_OPTIONS.filter(m => m.provider === 'openrouter').map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.label} (${option.pricePerImage}/张)
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
 
@@ -369,8 +381,21 @@ export default function Step4Generate() {
               已选 <span className="text-primary font-bold">{enabledTypeCount}</span> 个类型，
               共 <span className="text-primary font-bold">{totalImageCount}</span> 张图片
             </div>
+            <div className="text-xs mt-1">
+              {isFreeTierModel(selectedModel) ? (
+                <span className="text-primary font-bold">预估费用：免费额度</span>
+              ) : (
+                <span className="text-muted">
+                  预估费用：{totalImageCount}张 × ${pricePerImage.toFixed(3)} = <span className="text-primary font-bold">${estimatedCost.toFixed(2)}</span>
+                </span>
+              )}
+            </div>
             <div className="text-xs text-muted mt-1">
-              预估费用：{totalImageCount}张 × ${pricePerImage.toFixed(3)} = <span className="text-primary font-bold">${estimatedCost.toFixed(2)}</span>
+              {isDashScopeModel(selectedModel) ? (
+                <span className="text-primary">使用百炼平台</span>
+              ) : (
+                <span>使用 OpenRouter</span>
+              )}
             </div>
           </div>
         </div>

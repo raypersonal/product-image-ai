@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useApp } from '@/context/AppContext';
+import { ANALYZE_MODEL_OPTIONS, VISION_MODEL_OPTIONS, isDashScopeModel } from '@/types';
 
 export default function Step2Analysis() {
   const {
@@ -11,6 +12,10 @@ export default function Step2Analysis() {
     setAnalysisResult,
     isAnalyzing,
     setIsAnalyzing,
+    analyzeModel,
+    setAnalyzeModel,
+    visionModel,
+    setVisionModel,
   } = useApp();
 
   const [error, setError] = useState('');
@@ -26,6 +31,8 @@ export default function Step2Analysis() {
         body: JSON.stringify({
           productInfo,
           referenceImages,
+          analyzeModel,
+          visionModel,
         }),
       });
 
@@ -51,6 +58,66 @@ export default function Step2Analysis() {
         <p className="text-sm text-muted mt-1">
           AI将分析产品特点{referenceImages.length > 0 ? '和参考图片' : ''}，生成视觉风格、色彩方案、目标人群等建议
         </p>
+      </div>
+
+      {/* 模型选择栏 */}
+      <div className="p-4 border-b border-border bg-secondary/30">
+        <div className="flex flex-wrap gap-4 items-center">
+          {/* 分析模型选择 */}
+          <div>
+            <label className="block text-xs text-muted mb-1">分析模型</label>
+            <select
+              value={analyzeModel}
+              onChange={(e) => setAnalyzeModel(e.target.value)}
+              className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground min-w-[220px]"
+            >
+              <optgroup label="百炼（DashScope）">
+                {ANALYZE_MODEL_OPTIONS.filter(m => m.provider === 'dashscope').map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="OpenRouter">
+                {ANALYZE_MODEL_OPTIONS.filter(m => m.provider === 'openrouter').map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </optgroup>
+            </select>
+          </div>
+
+          {/* Vision模型选择（仅在有参考图时显示） */}
+          {referenceImages.length > 0 && (
+            <div>
+              <label className="block text-xs text-muted mb-1">视觉模型（参考图分析）</label>
+              <select
+                value={visionModel}
+                onChange={(e) => setVisionModel(e.target.value)}
+                className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground min-w-[220px]"
+              >
+                <optgroup label="百炼（DashScope）">
+                  {VISION_MODEL_OPTIONS.filter(m => m.provider === 'dashscope').map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="OpenRouter">
+                  {VISION_MODEL_OPTIONS.filter(m => m.provider === 'openrouter').map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          )}
+
+          <div className="flex-1"></div>
+
+          {/* 提供商标识 */}
+          <div className="text-xs text-muted">
+            {isDashScopeModel(analyzeModel) ? (
+              <span className="text-primary">使用百炼平台（免费额度）</span>
+            ) : (
+              <span>使用 OpenRouter</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* 内容区 */}
@@ -111,7 +178,7 @@ export default function Step2Analysis() {
                   ))}
                 </div>
                 <p className="text-xs text-muted mt-2">
-                  AI将使用 Gemini Vision 分析这些图片
+                  AI将使用 {VISION_MODEL_OPTIONS.find(m => m.value === visionModel)?.label || visionModel} 分析这些图片
                 </p>
               </div>
             )}

@@ -9,6 +9,7 @@ import {
   PROMPT_MODEL_OPTIONS,
   getCoreTypes,
   getAdditionalTypes,
+  isDashScopeModel,
 } from '@/types';
 
 // localStorage key
@@ -194,20 +195,36 @@ export default function Step3Prompts() {
             <select
               value={promptModel}
               onChange={(e) => setPromptModel(e.target.value)}
-              className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground min-w-[200px]"
+              className="px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground min-w-[240px]"
             >
-              {PROMPT_MODEL_OPTIONS.map(option => (
-                <option key={option.value} value={option.value}>{option.label}</option>
-              ))}
+              <optgroup label="百炼（DashScope）- 免费额度">
+                {PROMPT_MODEL_OPTIONS.filter(m => m.provider === 'dashscope').map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="OpenRouter">
+                {PROMPT_MODEL_OPTIONS.filter(m => m.provider === 'openrouter').map(option => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </optgroup>
             </select>
           </div>
 
           <div className="flex-1"></div>
 
-          {/* 统计信息 */}
-          <div className="text-sm text-muted">
-            将为 <span className="text-primary font-bold">{enabledTypeCount}</span> 个类型
-            生成 <span className="text-primary font-bold">{totalPromptCount}</span> 条 Prompt
+          {/* 统计信息和提供商标识 */}
+          <div className="text-right">
+            <div className="text-sm text-muted">
+              将为 <span className="text-primary font-bold">{enabledTypeCount}</span> 个类型
+              生成 <span className="text-primary font-bold">{totalPromptCount}</span> 条 Prompt
+            </div>
+            <div className="text-xs text-muted mt-1">
+              {isDashScopeModel(promptModel) ? (
+                <span className="text-primary">使用百炼平台（免费额度）</span>
+              ) : (
+                <span>使用 OpenRouter</span>
+              )}
+            </div>
           </div>
         </div>
       </div>

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductInfo, AnalysisResult, ImageTypeId, ImagePrompt } from '@/types';
+import { ProductInfo, AnalysisResult, ImageTypeId, ImagePrompt, isDashScopeModel } from '@/types';
+
+// DashScope API 基础配置
+const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 
 // App Router: 设置最大执行时间
 export const maxDuration = 60;
@@ -137,11 +140,16 @@ export async function POST(request: NextRequest) {
       apiKey?: string;
     };
 
-    const apiKey = process.env.OPENROUTER_API_KEY || body.apiKey;
+    // API Keys
+    const openRouterKey = process.env.OPENROUTER_API_KEY || body.apiKey;
+    const dashScopeKey = process.env.DASHSCOPE_API_KEY;
+
+    const isDashScope = isDashScopeModel(selectedModel);
+    const apiKey = isDashScope ? dashScopeKey : openRouterKey;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: '请先配置 OpenRouter API Key' },
+        { error: isDashScope ? '请先配置 DASHSCOPE_API_KEY' : '请先配置 OpenRouter API Key' },
         { status: 400 }
       );
     }
@@ -232,16 +240,25 @@ Return ONLY a JSON object with this exact structure:
 }`;
     }
 
-    console.log(`=== Generating prompts with model: ${selectedModel} ===`);
+    console.log(`=== Generating prompts with model: ${selectedModel} (${isDashScope ? 'DashScope' : 'OpenRouter'}) ===`);
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    const apiUrl = isDashScope
+      ? `${DASHSCOPE_BASE_URL}/chat/completions`
+      : 'https://openrouter.ai/api/v1/chat/completions';
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    };
+
+    if (!isDashScope) {
+      headers['HTTP-Referer'] = 'http://localhost:3000';
+      headers['X-Title'] = 'Product Image AI';
+    }
+
+    const response = await fetch(apiUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Product Image AI',
-      },
+      headers,
       body: JSON.stringify({
         model: selectedModel,
         messages: [
@@ -255,7 +272,7 @@ Return ONLY a JSON object with this exact structure:
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('OpenRouter API Error:', errorData);
+      console.error(`${isDashScope ? 'DashScope' : 'OpenRouter'} API Error:`, errorData);
       return NextResponse.json(
         { error: `API调用失败：${errorData.error?.message || response.statusText}` },
         { status: response.status }

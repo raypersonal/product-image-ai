@@ -293,22 +293,82 @@ export const STYLE_OPTIONS = [
   { value: 'gothic', label: '哥特' },
 ];
 
-// 图片生成模型选项
-export const IMAGE_MODEL_OPTIONS = [
-  { value: 'black-forest-labs/flux.2-pro', label: 'FLUX.2 Pro（高质量）', pricePerImage: 0.08 },
-  { value: 'black-forest-labs/flux.2-flex', label: 'FLUX.2 Flex（均衡）', pricePerImage: 0.04 },
-  { value: 'black-forest-labs/flux.2-klein-4b', label: 'FLUX.2 Klein（快速预览）', pricePerImage: 0.014 },
+// 提供商类型
+export type ModelProvider = 'openrouter' | 'dashscope';
+
+// 模型选项通用接口
+export interface ModelOption {
+  value: string;
+  label: string;
+  provider: ModelProvider;
+  pricePerImage?: number;  // 图片模型价格
+  isFree?: boolean;        // 是否免费额度
+}
+
+// ========== 分析模型选项（Step 2）==========
+export const ANALYZE_MODEL_OPTIONS: ModelOption[] = [
+  // DashScope 百炼
+  { value: 'qwen-plus', label: '通义千问-Plus（百炼默认）', provider: 'dashscope' },
+  { value: 'qwen-max', label: '通义千问-Max（百炼高级）', provider: 'dashscope' },
+  // OpenRouter
+  { value: 'deepseek/deepseek-chat', label: 'DeepSeek Chat', provider: 'openrouter' },
+  { value: 'openai/gpt-4o', label: 'GPT-4o', provider: 'openrouter' },
+];
+
+// 分析模型 - Vision 专用（用于参考图片分析）
+export const VISION_MODEL_OPTIONS: ModelOption[] = [
+  // DashScope 百炼
+  { value: 'qwen-vl-plus', label: '通义千问VL-Plus（百炼视觉）', provider: 'dashscope' },
+  { value: 'qwen-vl-max', label: '通义千问VL-Max（百炼视觉高级）', provider: 'dashscope' },
+  // OpenRouter
+  { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash', provider: 'openrouter' },
+  { value: 'openai/gpt-4o', label: 'GPT-4o Vision', provider: 'openrouter' },
+];
+
+// ========== Prompt 生成模型选项（Step 3）==========
+export const PROMPT_MODEL_OPTIONS: ModelOption[] = [
+  // DashScope 百炼（免费额度）
+  { value: 'qwen-plus', label: '通义千问-Plus（百炼，免费额度）', provider: 'dashscope', isFree: true },
+  { value: 'qwen-max', label: '通义千问-Max（百炼，免费额度）', provider: 'dashscope', isFree: true },
+  // OpenRouter
+  { value: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3', provider: 'openrouter' },
+  { value: 'openai/gpt-4o', label: 'GPT-4o', provider: 'openrouter' },
+  { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet', provider: 'openrouter' },
+];
+
+// ========== 图片生成模型选项（Step 4）==========
+export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
+  // DashScope 百炼（有免费额度）
+  { value: 'wanx2.1-t2i-turbo', label: 'Wanx 2.1 Turbo（百炼，有免费额度）', provider: 'dashscope', pricePerImage: 0, isFree: true },
+  { value: 'wanx2.1-t2i-plus', label: 'Wanx 2.1 Plus（百炼，高质量）', provider: 'dashscope', pricePerImage: 0.02 },
+  { value: 'wanx-v1', label: 'Wanx V1（百炼经典）', provider: 'dashscope', pricePerImage: 0, isFree: true },
+  // OpenRouter FLUX
+  { value: 'black-forest-labs/flux.2-pro', label: 'FLUX.2 Pro（高质量）', provider: 'openrouter', pricePerImage: 0.08 },
+  { value: 'black-forest-labs/flux.2-flex', label: 'FLUX.2 Flex（均衡）', provider: 'openrouter', pricePerImage: 0.04 },
+  { value: 'black-forest-labs/flux.2-klein-4b', label: 'FLUX.2 Klein（快速预览）', provider: 'openrouter', pricePerImage: 0.014 },
 ];
 
 // 向后兼容
 export const MODEL_OPTIONS = IMAGE_MODEL_OPTIONS;
 
-// Prompt 生成模型选项
-export const PROMPT_MODEL_OPTIONS = [
-  { value: 'deepseek/deepseek-chat-v3-0324', label: 'DeepSeek V3（默认）' },
-  { value: 'openai/gpt-4o', label: 'GPT-4o' },
-  { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet' },
-];
+// 获取模型选项的提供商
+export function getModelProvider(modelId: string): ModelProvider {
+  const allModels = [...ANALYZE_MODEL_OPTIONS, ...VISION_MODEL_OPTIONS, ...PROMPT_MODEL_OPTIONS, ...IMAGE_MODEL_OPTIONS];
+  const model = allModels.find(m => m.value === modelId);
+  return model?.provider || 'openrouter';
+}
+
+// 判断模型是否为百炼
+export function isDashScopeModel(modelId: string): boolean {
+  return getModelProvider(modelId) === 'dashscope';
+}
+
+// 判断模型是否有免费额度
+export function isFreeTierModel(modelId: string): boolean {
+  const allModels = [...PROMPT_MODEL_OPTIONS, ...IMAGE_MODEL_OPTIONS];
+  const model = allModels.find(m => m.value === modelId);
+  return model?.isFree || false;
+}
 
 // 图片尺寸选项（通用，向后兼容）
 export const SIZE_OPTIONS = [
@@ -353,4 +413,30 @@ export function getModelPrice(modelId: string): number {
 export function calculateEstimatedCost(imageCount: number, modelId: string): number {
   const pricePerImage = getModelPrice(modelId);
   return imageCount * pricePerImage;
+}
+
+// 格式化费用显示（支持免费额度）
+export function formatCostDisplay(imageCount: number, modelId: string): string {
+  const isFree = isFreeTierModel(modelId);
+  const cost = calculateEstimatedCost(imageCount, modelId);
+
+  if (isFree) {
+    return '免费额度';
+  }
+  return `$${cost.toFixed(2)}`;
+}
+
+// DashScope 尺寸格式转换（1:1 -> 1024*1024）
+export function convertAspectRatioToDashScope(aspectRatio: string): string {
+  const sizeMap: Record<string, string> = {
+    '1:1': '1024*1024',
+    '4:3': '1024*768',
+    '3:4': '768*1024',
+    '16:9': '1280*720',
+    '9:16': '720*1280',
+    '21:9': '1260*540',
+    '2:1': '1024*512',
+    '3:2': '1024*683',
+  };
+  return sizeMap[aspectRatio] || '1024*1024';
 }

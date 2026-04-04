@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductInfo, ReferenceImage } from '@/types';
+import { ProductInfo, ReferenceImage, isDashScopeModel } from '@/types';
 
 // App Router: 设置最大执行时间（Vercel 部署时生效）
 export const maxDuration = 60;
@@ -74,14 +74,95 @@ const VISION_PROMPT = `请仔细分析这些产品参考图片，提取以下信
 
 请用中文详细描述，这些信息将用于生成更精准的AI产品图片。`;
 
+// DashScope API 基础配置
+const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+
+/**
+ * 调用 OpenRouter API
+ */
+async function callOpenRouter(
+  messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>,
+  model: string,
+  apiKey: string,
+  maxTokens = 3000
+) {
+  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+      'HTTP-Referer': 'http://localhost:3000',
+      'X-Title': 'Product Image AI',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('OpenRouter API Error:', errorData);
+    throw new Error(`API调用失败：${errorData.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
+/**
+ * 调用 DashScope API（OpenAI 兼容模式）
+ */
+async function callDashScope(
+  messages: Array<{ role: string; content: string | Array<{ type: string; text?: string; image_url?: { url: string } }> }>,
+  model: string,
+  apiKey: string,
+  maxTokens = 3000
+) {
+  const response = await fetch(`${DASHSCOPE_BASE_URL}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: maxTokens,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error('DashScope API Error:', errorData);
+    throw new Error(`百炼API调用失败：${errorData.error?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content;
+}
+
 /**
  * 使用 Vision 模型分析参考图片
  */
 async function analyzeReferenceImages(
   images: ReferenceImage[],
-  apiKey: string
+  visionModel: string,
+  openRouterKey: string,
+  dashScopeKey: string
 ): Promise<string> {
   if (images.length === 0) return '';
+
+  const isDashScope = isDashScopeModel(visionModel);
+  const apiKey = isDashScope ? dashScopeKey : openRouterKey;
+
+  if (!apiKey) {
+    console.warn(`Missing API key for ${isDashScope ? 'DashScope' : 'OpenRouter'}, skipping vision analysis`);
+    return '';
+  }
 
   // 构建带图片的消息内容
   const content: Array<{ type: string; text?: string; image_url?: { url: string } }> = [
@@ -100,32 +181,11 @@ async function analyzeReferenceImages(
   }
 
   try {
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Product Image AI',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash-preview',
-        messages: [
-          { role: 'user', content },
-        ],
-        temperature: 0.5,
-        max_tokens: 3000,
-      }),
-    });
+    console.log(`=== Vision analysis using ${visionModel} (${isDashScope ? 'DashScope' : 'OpenRouter'}) ===`);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Vision API Error:', errorData);
-      throw new Error(`Vision分析失败：${errorData.error?.message || response.statusText}`);
-    }
-
-    const data = await response.json();
-    const result = data.choices?.[0]?.message?.content;
+    const result = isDashScope
+      ? await callDashScope([{ role: 'user', content }], visionModel, apiKey)
+      : await callOpenRouter([{ role: 'user', content }], visionModel, apiKey);
 
     if (!result) {
       throw new Error('Vision分析返回为空');
@@ -146,12 +206,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const productInfo: ProductInfo = body.productInfo;
     const referenceImages: ReferenceImage[] = body.referenceImages || [];
-    // 优先使用环境变量，其次使用前端传来的 apiKey
-    const apiKey = process.env.OPENROUTER_API_KEY || body.apiKey;
+    const analyzeModel: string = body.analyzeModel || 'qwen-plus';
+    const visionModel: string = body.visionModel || 'qwen-vl-plus';
+
+    // API Keys
+    const openRouterKey = process.env.OPENROUTER_API_KEY || body.apiKey;
+    const dashScopeKey = process.env.DASHSCOPE_API_KEY;
+
+    const isDashScope = isDashScopeModel(analyzeModel);
+    const apiKey = isDashScope ? dashScopeKey : openRouterKey;
 
     if (!apiKey) {
       return NextResponse.json(
-        { error: '请先配置 OpenRouter API Key' },
+        { error: isDashScope ? '请先配置 DASHSCOPE_API_KEY' : '请先配置 OpenRouter API Key' },
         { status: 400 }
       );
     }
@@ -167,7 +234,12 @@ export async function POST(request: NextRequest) {
     let visionAnalysis = '';
     if (referenceImages.length > 0) {
       console.log(`=== Analyzing ${referenceImages.length} reference images ===`);
-      visionAnalysis = await analyzeReferenceImages(referenceImages, apiKey);
+      visionAnalysis = await analyzeReferenceImages(
+        referenceImages,
+        visionModel,
+        openRouterKey || '',
+        dashScopeKey || ''
+      );
     }
 
     // 构建用户提示
@@ -195,39 +267,16 @@ ${visionAnalysis}
 
     userPrompt += '\n\n请返回JSON格式的分析结果。';
 
-    const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'HTTP-Referer': 'http://localhost:3000',
-        'X-Title': 'Product Image AI',
-      },
-      body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
-        messages: [
-          {
-            role: 'system',
-            content: visionAnalysis ? SYSTEM_PROMPT_WITH_REFS : SYSTEM_PROMPT
-          },
-          { role: 'user', content: userPrompt },
-        ],
-        temperature: 0.7,
-        max_tokens: 3000,
-      }),
-    });
+    console.log(`=== Product analysis using ${analyzeModel} (${isDashScope ? 'DashScope' : 'OpenRouter'}) ===`);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('OpenRouter API Error:', errorData);
-      return NextResponse.json(
-        { error: `API调用失败：${errorData.error?.message || response.statusText}` },
-        { status: response.status }
-      );
-    }
+    const messages = [
+      { role: 'system', content: visionAnalysis ? SYSTEM_PROMPT_WITH_REFS : SYSTEM_PROMPT },
+      { role: 'user', content: userPrompt },
+    ];
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
+    const content = isDashScope
+      ? await callDashScope(messages, analyzeModel, apiKey)
+      : await callOpenRouter(messages, analyzeModel, apiKey);
 
     if (!content) {
       return NextResponse.json(

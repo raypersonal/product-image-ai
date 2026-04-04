@@ -10,6 +10,7 @@ import {
   ALL_IMAGE_TYPES,
   ImageTypeId,
   getTypeConfig,
+  getModelProvider,
 } from '@/types';
 
 // 初始化默认的 enabledTypes（核心类型启用，附加类型禁用）
@@ -39,9 +40,13 @@ interface AppState {
   images: GeneratedImage[];
   isAnalyzing: boolean;
   isGeneratingPrompts: boolean;
-  // 图片生成模型
+  // 分析模型（Step 2）
+  analyzeModel: string;
+  // Vision模型（参考图分析）
+  visionModel: string;
+  // 图片生成模型（Step 4）
   selectedModel: string;
-  // Prompt 生成模型
+  // Prompt 生成模型（Step 3）
   promptModel: string;
   // 每个类型的启用状态
   enabledTypes: Record<string, boolean>;
@@ -63,6 +68,8 @@ interface AppContextType extends AppState {
   updateImage: (id: string, updates: Partial<GeneratedImage>) => void;
   setIsAnalyzing: (value: boolean) => void;
   setIsGeneratingPrompts: (value: boolean) => void;
+  setAnalyzeModel: (model: string) => void;
+  setVisionModel: (model: string) => void;
   setSelectedModel: (model: string) => void;
   setPromptModel: (model: string) => void;
   // 类型启用/禁用
@@ -106,8 +113,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [images, setImages] = useState<GeneratedImage[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
-  const [selectedModel, setSelectedModel] = useState('black-forest-labs/flux.2-flex');
-  const [promptModel, setPromptModel] = useState('deepseek/deepseek-chat-v3-0324');
+  // 分析模型：默认使用百炼 qwen-plus
+  const [analyzeModel, setAnalyzeModel] = useState('qwen-plus');
+  // Vision模型：默认使用百炼 qwen-vl-plus
+  const [visionModel, setVisionModel] = useState('qwen-vl-plus');
+  // 图片生成模型：默认使用百炼 wanx2.1-t2i-turbo（免费额度）
+  const [selectedModel, setSelectedModel] = useState('wanx2.1-t2i-turbo');
+  // Prompt生成模型：默认使用百炼 qwen-plus
+  const [promptModel, setPromptModel] = useState('qwen-plus');
   const [enabledTypes, setEnabledTypes] = useState<Record<string, boolean>>(getDefaultEnabledTypes);
   const [typeSizeMap, setTypeSizeMap] = useState<Record<string, string>>(getDefaultTypeSizeMap);
 
@@ -250,6 +263,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         images,
         isAnalyzing,
         isGeneratingPrompts,
+        analyzeModel,
+        visionModel,
         selectedModel,
         promptModel,
         enabledTypes,
@@ -268,6 +283,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         updateImage,
         setIsAnalyzing,
         setIsGeneratingPrompts,
+        setAnalyzeModel,
+        setVisionModel,
         setSelectedModel,
         setPromptModel,
         setSelectedSize,
