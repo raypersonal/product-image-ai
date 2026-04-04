@@ -29,6 +29,18 @@ interface Wan26Response {
 }
 
 /**
+ * 确保图片是正确的 data URI 格式
+ */
+function ensureDataUri(base64: string): string {
+  // 如果已经是 data URI 格式，直接返回
+  if (base64.startsWith('data:image/')) {
+    return base64;
+  }
+  // 否则添加 JPEG 前缀（因为我们的压缩器输出 JPEG）
+  return `data:image/jpeg;base64,${base64}`;
+}
+
+/**
  * 使用 wan2.6-image 进行图生图
  * 保持产品主体，替换背景/场景
  */
@@ -46,11 +58,16 @@ async function generateWithWan26(
   console.log('║ ' + scenePrompt.substring(0, 200) + (scenePrompt.length > 200 ? '...' : ''));
   console.log('║ Size:', size);
   console.log('║ Negative Prompt:', negativePrompt.substring(0, 100));
+  console.log('║ Image Format:', productImageBase64.substring(0, 50) + '...');
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
-  // 构建请求体
+  // 确保图片是正确的 data URI 格式
+  const imageDataUri = ensureDataUri(productImageBase64);
+  console.log('>>> Image Data URI prefix:', imageDataUri.substring(0, 30));
+
+  // 构建请求体 - 使用 wan2.6-image 模型
   const requestBody = {
-    model: 'wanx2.1-t2i-turbo',
+    model: 'wan2.6-image',
     input: {
       messages: [
         {
@@ -67,7 +84,7 @@ ${scenePrompt}
 - 保持产品的精确比例和颜色`,
             },
             {
-              image: productImageBase64,
+              image: imageDataUri,
             },
           ],
         },
@@ -76,7 +93,7 @@ ${scenePrompt}
     parameters: {
       size: size || '1024*1024',
       n: 1,
-      negative_prompt: negativePrompt || '变形, 拉伸, 扭曲, 比例错误, 模糊, 低质量',
+      enable_interleave: false,  // 图片编辑模式
     },
   };
 
@@ -124,9 +141,9 @@ ${scenePrompt}
 }
 
 /**
- * 备选：使用 wan2.5-i2i-preview 进行图生图
+ * 备选：使用 wanx2.1-imageedit 进行图生图
  */
-async function generateWithWan25I2I(
+async function generateWithImageEdit(
   productImageBase64: string,
   scenePrompt: string,
   negativePrompt: string,
@@ -134,17 +151,20 @@ async function generateWithWan25I2I(
 ): Promise<string> {
   const I2I_URL = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/image2image/image-synthesis';
 
-  console.log('\n>>> Trying wan2.5-i2i-preview as fallback...');
+  console.log('\n>>> Trying wanx2.1-imageedit as fallback...');
+
+  // 确保图片是正确的 data URI 格式
+  const imageDataUri = ensureDataUri(productImageBase64);
 
   const requestBody = {
-    model: 'wanx2.1-t2i-turbo',
+    model: 'wanx2.1-imageedit',
     input: {
+      function: 'description_edit',  // 文本驱动编辑，无需遮罩
       prompt: `保持产品主体完全不变，只替换背景。${scenePrompt}`,
-      base_image: productImageBase64,
+      base_image_url: imageDataUri,
     },
     parameters: {
       n: 1,
-      negative_prompt: negativePrompt,
     },
   };
 
@@ -197,7 +217,7 @@ async function generateWithWan25I2I(
       if (results && results.length > 0) {
         const imageUrl = results[0].url || results[0].b64_image;
         if (imageUrl) {
-          console.log('✅ wan2.5-i2i 生成成功！');
+          console.log('✅ wanx2.1-imageedit 生成成功！');
           return imageUrl;
         }
       }
@@ -279,19 +299,19 @@ export async function POST(request: NextRequest) {
         apiKey
       );
     } catch (error) {
-      console.error('wan2.6-image failed, trying wan2.5-i2i fallback...');
+      console.error('wan2.6-image failed, trying wanx2.1-imageedit fallback...');
       console.error('Error:', error);
 
-      // Fallback 到 wan2.5-i2i
+      // Fallback 到 wanx2.1-imageedit
       try {
-        imageUrl = await generateWithWan25I2I(
+        imageUrl = await generateWithImageEdit(
           productImageBase64,
           fullPrompt,
           finalNegativePrompt,
           apiKey
         );
       } catch (fallbackError) {
-        console.error('wan2.5-i2i also failed:', fallbackError);
+        console.error('wanx2.1-imageedit also failed:', fallbackError);
         throw new Error(`图生图失败：${error instanceof Error ? error.message : '未知错误'}`);
       }
     }
