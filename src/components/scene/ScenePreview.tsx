@@ -3,6 +3,100 @@
 import { useState } from 'react';
 import { GeneratedSceneImage } from './SceneWorkbench';
 
+// 历史记录项组件 - 支持悬停下载和信息展示
+function HistoryItem({
+  image,
+  index,
+  isSelected,
+  onSelect,
+  onDownload,
+  onPreview,
+}: {
+  image: GeneratedSceneImage;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+  onDownload: () => void;
+  onPreview: () => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  // 截取 prompt 前30个字符
+  const shortPrompt = image.prompt.length > 30
+    ? image.prompt.substring(0, 30) + '...'
+    : image.prompt;
+
+  return (
+    <div
+      className={`group relative aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer transition-all ${
+        isSelected ? 'ring-2 ring-green-500' : 'hover:ring-2 hover:ring-green-500/50'
+      }`}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={onSelect}
+    >
+      <img
+        src={image.imageData}
+        alt=""
+        className="w-full h-full object-cover"
+      />
+
+      {/* 序号标签 */}
+      <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-xs text-white">
+        #{index + 1}
+      </div>
+
+      {/* 悬停遮罩层 */}
+      {isHovered && (
+        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center gap-1 p-1">
+          {/* 操作按钮 */}
+          <div className="flex gap-1">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onPreview();
+              }}
+              className="px-2 py-1 bg-white/20 hover:bg-white/30 rounded text-xs text-white transition-colors"
+              title="放大预览"
+            >
+              🔍
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDownload();
+              }}
+              className="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs text-white transition-colors"
+              title="下载图片"
+            >
+              📥
+            </button>
+          </div>
+
+          {/* 简要信息 */}
+          <div className="text-[10px] text-white/80 text-center mt-1 px-1 line-clamp-2">
+            {shortPrompt}
+          </div>
+
+          {/* 标签 */}
+          {image.tags.length > 0 && (
+            <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
+              {image.tags.slice(0, 2).map((tag) => (
+                <span key={tag} className="px-1 py-0.5 bg-green-600/50 rounded text-[8px] text-white">
+                  {tag}
+                </span>
+              ))}
+              {image.tags.length > 2 && (
+                <span className="text-[8px] text-white/60">+{image.tags.length - 2}</span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ScenePreviewProps {
   // 生成状态
   isGenerating: boolean;
@@ -44,7 +138,8 @@ export default function ScenePreview({
   hasProductImages = false,
 }: ScenePreviewProps) {
   const [showFullPrompt, setShowFullPrompt] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  // 预览的图片对象（用于模态框显示和下载）
+  const [previewingImage, setPreviewingImage] = useState<GeneratedSceneImage | null>(null);
 
   // 生成模式
   const generationMode = hasProductImages ? 'img2img' : 'text2img';
@@ -141,7 +236,7 @@ export default function ScenePreview({
               src={currentImage.imageData}
               alt="Generated scene"
               className="w-full h-full object-contain cursor-pointer"
-              onClick={() => setPreviewImage(currentImage.imageData)}
+              onClick={() => setPreviewingImage(currentImage)}
             />
             {/* 点击放大提示 */}
             <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded text-xs text-white">
@@ -227,60 +322,69 @@ export default function ScenePreview({
           </div>
         ) : (
           <div className="grid grid-cols-4 gap-2">
-            {history.slice(0, 20).map((img) => (
-              <div
+            {history.slice(0, 20).map((img, index) => (
+              <HistoryItem
                 key={img.id}
-                onClick={() => onSelectHistory(img)}
-                className={`relative aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer transition-all hover:ring-2 hover:ring-green-500 ${
-                  currentImage?.id === img.id ? 'ring-2 ring-green-500' : ''
-                }`}
-              >
-                <img
-                  src={img.imageData}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-                {/* 序号 */}
-                <div className="absolute bottom-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-xs text-white">
-                  #{history.indexOf(img) + 1}
-                </div>
-              </div>
+                image={img}
+                index={index}
+                isSelected={currentImage?.id === img.id}
+                onSelect={() => onSelectHistory(img)}
+                onDownload={() => handleDownload(img)}
+                onPreview={() => setPreviewingImage(img)}
+              />
             ))}
           </div>
         )}
       </div>
 
       {/* 图片预览模态框 */}
-      {previewImage && (
+      {previewingImage && (
         <div
           className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
-          onClick={() => setPreviewImage(null)}
+          onClick={() => setPreviewingImage(null)}
         >
-          <div className="relative max-w-4xl max-h-full">
+          <div className="relative max-w-4xl max-h-full" onClick={(e) => e.stopPropagation()}>
             <img
-              src={previewImage}
+              src={previewingImage.imageData}
               alt="Preview"
               className="max-w-full max-h-[90vh] object-contain rounded-lg"
             />
+            {/* 关闭按钮 */}
             <button
-              onClick={() => setPreviewImage(null)}
+              onClick={() => setPreviewingImage(null)}
               className="absolute -top-3 -right-3 w-10 h-10 bg-secondary rounded-full flex items-center justify-center text-foreground hover:bg-secondary-hover text-lg"
             >
               ✕
             </button>
-            {currentImage && (
-              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+
+            {/* 底部信息和操作栏 */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
+              {/* 图片信息 */}
+              <div className="text-xs text-white/80 mb-2 line-clamp-2">
+                {previewingImage.prompt}
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs text-white/60">
+                  <span>{previewingImage.model}</span>
+                  <span>•</span>
+                  <span>{previewingImage.size}</span>
+                  <span>•</span>
+                  <span>{new Date(previewingImage.timestamp).toLocaleTimeString()}</span>
+                  {previewingImage.tags.length > 0 && (
+                    <>
+                      <span>•</span>
+                      <span>{previewingImage.tags.slice(0, 3).join(', ')}</span>
+                    </>
+                  )}
+                </div>
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDownload(currentImage);
-                  }}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-500"
+                  onClick={() => handleDownload(previewingImage)}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-500 transition-colors"
                 >
                   📥 下载图片
                 </button>
               </div>
-            )}
+            </div>
           </div>
         </div>
       )}
