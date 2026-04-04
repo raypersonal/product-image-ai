@@ -74,6 +74,40 @@ export default function AnalysisPanel() {
                 ))}
               </ul>
             </div>
+
+            {/* 参考图片分析 */}
+            {analysisResult.referenceAnalysis && (
+              <>
+                <div className="border-t border-border my-4"></div>
+                <div className="bg-background rounded-lg p-3">
+                  <h3 className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
+                    <span>📷</span> 产品外观
+                  </h3>
+                  <p className="text-sm text-foreground">{analysisResult.referenceAnalysis.appearance}</p>
+                </div>
+
+                <div className="bg-background rounded-lg p-3">
+                  <h3 className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
+                    <span>📦</span> 包装特征
+                  </h3>
+                  <p className="text-sm text-foreground">{analysisResult.referenceAnalysis.packaging}</p>
+                </div>
+
+                <div className="bg-background rounded-lg p-3">
+                  <h3 className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
+                    <span>🎯</span> 差异化优势
+                  </h3>
+                  <p className="text-sm text-foreground">{analysisResult.referenceAnalysis.competitorDiff}</p>
+                </div>
+
+                <div className="bg-background rounded-lg p-3">
+                  <h3 className="text-sm font-medium text-primary mb-2 flex items-center gap-2">
+                    <span>✨</span> 设计元素
+                  </h3>
+                  <p className="text-sm text-foreground">{analysisResult.referenceAnalysis.designElements}</p>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

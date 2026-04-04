@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 
+// App Router: 设置最大执行时间
+export const maxDuration = 60;
+
 interface ImageData {
   id: string;
   promptId: string;
@@ -24,6 +27,19 @@ interface AnalysisData {
   targetAudience: string;
   sellingPoints: string[];
   scenes: string[];
+  referenceAnalysis?: {
+    appearance: string;
+    packaging: string;
+    competitorDiff: string;
+    designElements: string;
+  };
+}
+
+interface ReferenceImageData {
+  id: string;
+  base64: string;
+  description: string;
+  filename: string;
 }
 
 interface SaveRequest {
@@ -33,6 +49,7 @@ interface SaveRequest {
   images: ImageData[];
   prompts: PromptData[];
   analysisResult: AnalysisData | null;
+  referenceImages?: ReferenceImageData[];
   startTime?: string;
 }
 
@@ -101,7 +118,7 @@ async function downloadImage(url: string): Promise<Buffer | null> {
 export async function POST(request: NextRequest) {
   try {
     const body: SaveRequest = await request.json();
-    const { productName, model, aspectRatio, images, prompts, analysisResult, startTime } = body;
+    const { productName, model, aspectRatio, images, prompts, analysisResult, referenceImages, startTime } = body;
 
     if (!productName) {
       return NextResponse.json({ error: '缺少产品名称' }, { status: 400 });
@@ -114,9 +131,28 @@ export async function POST(request: NextRequest) {
     // 项目根目录下的 output 文件夹
     const outputDir = path.join(process.cwd(), 'output', folderName);
     const imagesDir = path.join(outputDir, 'images');
+    const referencesDir = path.join(outputDir, 'references');
 
     // 创建目录
     fs.mkdirSync(imagesDir, { recursive: true });
+
+    // 如果有参考图片，创建 references 目录并保存
+    if (referenceImages && referenceImages.length > 0) {
+      fs.mkdirSync(referencesDir, { recursive: true });
+
+      for (let i = 0; i < referenceImages.length; i++) {
+        const refImg = referenceImages[i];
+        const refBuffer = base64ToBuffer(refImg.base64);
+        if (refBuffer) {
+          // 文件名格式：ref_01_描述.png
+          const descPart = refImg.description
+            ? `_${sanitizeFilename(refImg.description)}`
+            : '';
+          const refFilename = `ref_${String(i + 1).padStart(2, '0')}${descPart}.png`;
+          fs.writeFileSync(path.join(referencesDir, refFilename), refBuffer);
+        }
+      }
+    }
 
     // 统计信息
     let successCount = 0;

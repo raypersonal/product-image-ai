@@ -144,6 +144,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 构建参考图片分析部分
+    let referenceSection = '';
+    if (analysisResult.referenceAnalysis) {
+      const ref = analysisResult.referenceAnalysis;
+      referenceSection = `
+
+Reference Images Analysis (IMPORTANT - Use these details for accurate product representation):
+- Product Appearance: ${ref.appearance}
+- Packaging Features: ${ref.packaging}
+- Competitive Differentiation: ${ref.competitorDiff}
+- Design Elements to Incorporate: ${ref.designElements}
+
+CRITICAL: For scene, usage, and handheld images, you MUST incorporate the actual product colors, textures, and proportions from the reference analysis above. The generated images should accurately represent the real product.`;
+    }
+
     const userPrompt = `Generate AI image prompts for the following product:
 
 Product Name: ${productInfo.name}
@@ -158,7 +173,7 @@ AI Analysis Results:
 - Color Palette: ${analysisResult.colorPalette}
 - Target Audience: ${analysisResult.targetAudience}
 - Key Selling Points: ${analysisResult.sellingPoints.join(', ')}
-- Suggested Scenes: ${analysisResult.scenes.join(', ')}
+- Suggested Scenes: ${analysisResult.scenes.join(', ')}${referenceSection}
 
 Generate prompts for:
 - Main Images: ${IMAGE_TYPE_CONFIG.main.count} prompts

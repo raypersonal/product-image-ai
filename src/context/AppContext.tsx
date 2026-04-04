@@ -7,12 +7,14 @@ import {
   ImagePrompt,
   GeneratedImage,
   IMAGE_TYPE_CONFIG,
-  ImageType
+  ImageType,
+  ReferenceImage
 } from '@/types';
 
 interface AppState {
   currentStep: number;
   productInfo: ProductInfo;
+  referenceImages: ReferenceImage[];
   analysisResult: AnalysisResult | null;
   prompts: ImagePrompt[];
   images: GeneratedImage[];
@@ -25,6 +27,10 @@ interface AppState {
 interface AppContextType extends AppState {
   setCurrentStep: (step: number) => void;
   setProductInfo: (info: ProductInfo) => void;
+  setReferenceImages: (images: ReferenceImage[]) => void;
+  addReferenceImage: (image: ReferenceImage) => void;
+  updateReferenceImage: (id: string, updates: Partial<ReferenceImage>) => void;
+  removeReferenceImage: (id: string) => void;
   setAnalysisResult: (result: AnalysisResult | null) => void;
   setPrompts: (prompts: ImagePrompt[]) => void;
   updatePrompt: (id: string, newPrompt: string) => void;
@@ -52,6 +58,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: ReactNode }) {
   const [currentStep, setCurrentStep] = useState(1);
   const [productInfo, setProductInfo] = useState<ProductInfo>(defaultProductInfo);
+  const [referenceImages, setReferenceImages] = useState<ReferenceImage[]>([]);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [prompts, setPrompts] = useState<ImagePrompt[]>([]);
   const [images, setImages] = useState<GeneratedImage[]>([]);
@@ -59,6 +66,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
   const [selectedModel, setSelectedModel] = useState('black-forest-labs/flux.2-flex');
   const [selectedSize, setSelectedSize] = useState('1:1');
+
+  const addReferenceImage = useCallback((image: ReferenceImage) => {
+    setReferenceImages(prev => [...prev, image]);
+  }, []);
+
+  const updateReferenceImage = useCallback((id: string, updates: Partial<ReferenceImage>) => {
+    setReferenceImages(prev => prev.map(img =>
+      img.id === id ? { ...img, ...updates } : img
+    ));
+  }, []);
+
+  const removeReferenceImage = useCallback((id: string) => {
+    setReferenceImages(prev => prev.filter(img => img.id !== id));
+  }, []);
 
   const updatePrompt = useCallback((id: string, newPrompt: string) => {
     setPrompts(prev => prev.map(p =>
@@ -107,6 +128,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       value={{
         currentStep,
         productInfo,
+        referenceImages,
         analysisResult,
         prompts,
         images,
@@ -116,6 +138,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         selectedSize,
         setCurrentStep,
         setProductInfo,
+        setReferenceImages,
+        addReferenceImage,
+        updateReferenceImage,
+        removeReferenceImage,
         setAnalysisResult,
         setPrompts,
         updatePrompt,

@@ -14,7 +14,7 @@ interface SaveResult {
 }
 
 export default function Step5Download() {
-  const { prompts, images, productInfo, analysisResult, selectedModel, selectedSize } = useApp();
+  const { prompts, images, productInfo, referenceImages, analysisResult, selectedModel, selectedSize } = useApp();
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -121,6 +121,7 @@ export default function Step5Download() {
           images,
           prompts,
           analysisResult,
+          referenceImages,
         }),
       });
 

@@ -1,3 +1,11 @@
+// 参考图片
+export interface ReferenceImage {
+  id: string;
+  base64: string;       // data:image/xxx;base64,...
+  description: string;  // 用户填写的描述
+  filename: string;
+}
+
 // 产品信息
 export interface ProductInfo {
   name: string;
@@ -15,6 +23,13 @@ export interface AnalysisResult {
   targetAudience: string;
   sellingPoints: string[];
   scenes: string[];
+  // 参考图片分析结果（可选）
+  referenceAnalysis?: {
+    appearance: string;      // 产品外观描述
+    packaging: string;       // 包装特征
+    competitorDiff: string;  // 竞品差异点
+    designElements: string;  // 可借鉴的设计元素
+  };
 }
 
 // 图片类型
