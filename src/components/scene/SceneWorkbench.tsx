@@ -466,6 +466,7 @@ export default function SceneWorkbench() {
             outputSize={state.outputSize}
             platform={state.platform}
             imageModel={state.imageModel}
+            hasProductImages={state.productImages.length > 0}
           />
         </div>
       </div>

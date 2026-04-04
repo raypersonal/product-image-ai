@@ -31,7 +31,7 @@ export default function MainContent() {
   };
 
   return (
-    <main className="flex-1 h-screen flex flex-col bg-background overflow-hidden">
+    <main className="flex-1 h-full flex flex-col bg-background overflow-hidden">
       <div className="flex-1 overflow-hidden">
         {renderStep()}
       </div>
