@@ -140,6 +140,16 @@ export async function POST(request: NextRequest) {
       apiKey?: string;
     };
 
+    if (!productInfo || !analysisResult) {
+      return NextResponse.json(
+        { error: '缺少产品信息或分析结果' },
+        { status: 400 }
+      );
+    }
+
+    // 使用的模型（必须先定义，后面 isDashScope 依赖它）
+    const selectedModel = model || 'qwen-plus';
+
     // API Keys
     const openRouterKey = process.env.OPENROUTER_API_KEY || body.apiKey;
     const dashScopeKey = process.env.DASHSCOPE_API_KEY;
@@ -154,16 +164,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!productInfo || !analysisResult) {
-      return NextResponse.json(
-        { error: '缺少产品信息或分析结果' },
-        { status: 400 }
-      );
-    }
-
-    // 使用的模型
-    const selectedModel = model || 'deepseek/deepseek-chat-v3-0324';
-
     // 默认的 enabledTypes（向后兼容）
     const defaultEnabledTypes: EnabledTypeConfig[] = [
       { id: 'main', name: '主图', count: 6, promptHint: 'Amazon main product image, clean pure white background' },
@@ -175,6 +175,13 @@ export async function POST(request: NextRequest) {
     ];
 
     const typesToGenerate = enabledTypes || defaultEnabledTypes;
+
+    // 调试日志：显示要生成的类型
+    console.log('=== Types to generate ===');
+    console.log(`Received ${enabledTypes?.length || 0} enabled types from request`);
+    console.log(`Will generate prompts for ${typesToGenerate.length} types:`);
+    typesToGenerate.forEach(t => console.log(`  - ${t.name} (${t.id}): ${t.count} prompts`));
+
     const systemPrompt = buildSystemPrompt(typesToGenerate);
 
     // 构建参考图片分析部分
