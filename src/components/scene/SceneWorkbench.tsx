@@ -1,7 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import SceneProductUpload from './SceneProductUpload';
+import ScenePromptEditor from './ScenePromptEditor';
+import { generateScenePrompt } from '@/lib/scene/scenePromptGenerator';
 
 // 场景工作台状态类型
 export interface UploadedImage {
@@ -35,6 +37,7 @@ export interface SceneState {
   styleStrength: number;
   referenceWeight: number;
   // 生成状态
+  isGeneratingPrompt: boolean;
   isAnalyzing: boolean;
   isGenerating: boolean;
   currentImage: GeneratedSceneImage | null;
@@ -63,6 +66,7 @@ const initialState: SceneState = {
   outputSize: '1:1',
   styleStrength: 50,
   referenceWeight: 50,
+  isGeneratingPrompt: false,
   isAnalyzing: false,
   isGenerating: false,
   currentImage: null,
@@ -73,40 +77,123 @@ export default function SceneWorkbench() {
   const [state, setState] = useState<SceneState>(initialState);
 
   // 更新产品图
-  const setProductImages = (images: UploadedImage[]) => {
-    setState(prev => ({ ...prev, productImages: images }));
-  };
-
-  const addProductImage = (image: UploadedImage) => {
+  const addProductImage = useCallback((image: UploadedImage) => {
     setState(prev => ({
       ...prev,
       productImages: [...prev.productImages, image],
     }));
-  };
+  }, []);
 
-  const removeProductImage = (id: string) => {
+  const removeProductImage = useCallback((id: string) => {
     setState(prev => ({
       ...prev,
       productImages: prev.productImages.filter(img => img.id !== id),
     }));
-  };
+  }, []);
 
-  const updateProductImage = (id: string, updates: Partial<UploadedImage>) => {
+  const updateProductImage = useCallback((id: string, updates: Partial<UploadedImage>) => {
     setState(prev => ({
       ...prev,
       productImages: prev.productImages.map(img =>
         img.id === id ? { ...img, ...updates } : img
       ),
     }));
-  };
+  }, []);
 
   // 更新产品信息
-  const setProductInfo = (info: Partial<SceneProductInfo>) => {
+  const setProductInfo = useCallback((info: Partial<SceneProductInfo>) => {
     setState(prev => ({
       ...prev,
       productInfo: { ...prev.productInfo, ...info },
     }));
-  };
+  }, []);
+
+  // 标签操作
+  const toggleTag = useCallback((tagId: string) => {
+    setState(prev => ({
+      ...prev,
+      selectedTags: prev.selectedTags.includes(tagId)
+        ? prev.selectedTags.filter(id => id !== tagId)
+        : [...prev.selectedTags, tagId],
+    }));
+  }, []);
+
+  const clearTags = useCallback(() => {
+    setState(prev => ({ ...prev, selectedTags: [] }));
+  }, []);
+
+  // 提示词模式
+  const setPromptMode = useCallback((mode: PromptMode) => {
+    setState(prev => ({
+      ...prev,
+      promptMode: mode,
+      // 切换到手动模式时清空自动生成的内容
+      prompt: mode === 'manual' ? '' : prev.prompt,
+      isPromptEdited: false,
+    }));
+  }, []);
+
+  // 设置提示词
+  const setPrompt = useCallback((prompt: string) => {
+    setState(prev => ({
+      ...prev,
+      prompt,
+      isPromptEdited: prev.promptMode === 'hybrid' && prompt !== prev.prompt,
+    }));
+  }, []);
+
+  // 生成提示词
+  const handleGeneratePrompt = useCallback(async () => {
+    setState(prev => ({ ...prev, isGeneratingPrompt: true }));
+
+    try {
+      const result = await generateScenePrompt({
+        productName: state.productInfo.name,
+        productCategory: state.productInfo.category,
+        productDescription: state.productInfo.description,
+        selectedTags: state.selectedTags,
+        styleStrength: state.styleStrength,
+        referenceWeight: state.referenceWeight,
+        hasReferenceImages: state.productImages.length > 0,
+      });
+
+      setState(prev => ({
+        ...prev,
+        prompt: result.prompt,
+        isPromptEdited: false,
+        isGeneratingPrompt: false,
+      }));
+    } catch (error) {
+      console.error('Failed to generate prompt:', error);
+      setState(prev => ({ ...prev, isGeneratingPrompt: false }));
+    }
+  }, [state.productInfo, state.selectedTags, state.styleStrength, state.referenceWeight, state.productImages.length]);
+
+  // 高级选项
+  const setOutputSize = useCallback((size: string) => {
+    setState(prev => ({ ...prev, outputSize: size }));
+  }, []);
+
+  const setStyleStrength = useCallback((value: number) => {
+    setState(prev => ({ ...prev, styleStrength: value }));
+  }, []);
+
+  const setReferenceWeight = useCallback((value: number) => {
+    setState(prev => ({ ...prev, referenceWeight: value }));
+  }, []);
+
+  // 生成图片（Phase 3 实现）
+  const handleGenerateImage = useCallback(async () => {
+    if (!state.prompt) return;
+
+    setState(prev => ({ ...prev, isGenerating: true }));
+
+    // TODO: Phase 3 实现图片生成 API 调用
+    // Mock: 模拟生成延迟
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    setState(prev => ({ ...prev, isGenerating: false }));
+  }, [state.prompt]);
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -118,7 +205,7 @@ export default function SceneWorkbench() {
           <span className="text-xs text-muted px-2 py-0.5 bg-secondary rounded">Beta</span>
         </div>
 
-        {/* 模型选择器（Phase 3 实现） */}
+        {/* 模型选择器 */}
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted">图片模型:</span>
           <select
@@ -154,123 +241,27 @@ export default function SceneWorkbench() {
         </div>
 
         {/* 中栏：提示词编辑区 (35%) */}
-        <div className="w-[35%] min-w-[320px] border-r border-border overflow-y-auto p-4">
-          <div className="space-y-4">
-            {/* 模式切换 */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">提示词模式</label>
-              <div className="flex gap-2">
-                {[
-                  { value: 'auto', label: '⚡ 自动', desc: '选标签自动生成' },
-                  { value: 'manual', label: '✏️ 手动', desc: '自由编写' },
-                  { value: 'hybrid', label: '🔀 混合', desc: '自动+微调' },
-                ].map((mode) => (
-                  <button
-                    key={mode.value}
-                    onClick={() => setState(prev => ({ ...prev, promptMode: mode.value as PromptMode }))}
-                    className={`flex-1 px-3 py-2 rounded-lg text-sm transition-colors ${
-                      state.promptMode === mode.value
-                        ? 'bg-primary text-background'
-                        : 'bg-secondary text-muted hover:text-foreground'
-                    }`}
-                  >
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* 场景标签区（Phase 2 详细实现） */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">场景快捷标签</label>
-              <div className="p-3 bg-secondary/50 rounded-lg border border-border min-h-[120px]">
-                <p className="text-sm text-muted text-center py-8">
-                  🏷️ 场景标签选择器<br />
-                  <span className="text-xs">（Phase 2 实现）</span>
-                </p>
-              </div>
-            </div>
-
-            {/* 提示词文本框 */}
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                提示词
-                {state.promptMode === 'auto' && (
-                  <span className="text-xs text-muted ml-2">（自动模式下只读）</span>
-                )}
-              </label>
-              <textarea
-                value={state.prompt}
-                onChange={(e) => setState(prev => ({ ...prev, prompt: e.target.value, isPromptEdited: true }))}
-                readOnly={state.promptMode === 'auto'}
-                placeholder={
-                  state.promptMode === 'auto'
-                    ? '选择场景标签后自动生成提示词...'
-                    : '输入场景描述，例如：Product placed on a wooden table in a cozy living room with warm lighting...'
-                }
-                rows={6}
-                className={`w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted resize-none ${
-                  state.promptMode === 'auto' ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              />
-            </div>
-
-            {/* 高级选项（折叠） */}
-            <details className="group">
-              <summary className="text-sm font-medium text-foreground cursor-pointer hover:text-primary flex items-center gap-2">
-                <span className="group-open:rotate-90 transition-transform">▶</span>
-                高级选项
-              </summary>
-              <div className="mt-3 space-y-4 pl-4">
-                {/* 输出尺寸 */}
-                <div>
-                  <label className="block text-xs text-muted mb-1">输出尺寸</label>
-                  <select
-                    value={state.outputSize}
-                    onChange={(e) => setState(prev => ({ ...prev, outputSize: e.target.value }))}
-                    className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground"
-                  >
-                    <option value="1:1">1:1 (1024×1024)</option>
-                    <option value="4:3">4:3 (1024×768)</option>
-                    <option value="3:4">3:4 (768×1024)</option>
-                    <option value="16:9">16:9 (1280×720)</option>
-                    <option value="9:16">9:16 (720×1280)</option>
-                    <option value="21:9">21:9 (1260×540)</option>
-                  </select>
-                </div>
-
-                {/* 风格强度 */}
-                <div>
-                  <label className="block text-xs text-muted mb-1">
-                    风格强度: {state.styleStrength}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={state.styleStrength}
-                    onChange={(e) => setState(prev => ({ ...prev, styleStrength: Number(e.target.value) }))}
-                    className="w-full accent-primary"
-                  />
-                </div>
-
-                {/* 参考图权重 */}
-                <div>
-                  <label className="block text-xs text-muted mb-1">
-                    参考图权重: {state.referenceWeight}%
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={state.referenceWeight}
-                    onChange={(e) => setState(prev => ({ ...prev, referenceWeight: Number(e.target.value) }))}
-                    className="w-full accent-primary"
-                  />
-                </div>
-              </div>
-            </details>
-          </div>
+        <div className="w-[35%] min-w-[320px] border-r border-border overflow-y-auto">
+          <ScenePromptEditor
+            selectedTags={state.selectedTags}
+            onToggleTag={toggleTag}
+            onClearTags={clearTags}
+            promptMode={state.promptMode}
+            onSetPromptMode={setPromptMode}
+            prompt={state.prompt}
+            onSetPrompt={setPrompt}
+            isPromptEdited={state.isPromptEdited}
+            productImages={state.productImages}
+            productInfo={state.productInfo}
+            outputSize={state.outputSize}
+            onSetOutputSize={setOutputSize}
+            styleStrength={state.styleStrength}
+            onSetStyleStrength={setStyleStrength}
+            referenceWeight={state.referenceWeight}
+            onSetReferenceWeight={setReferenceWeight}
+            isGeneratingPrompt={state.isGeneratingPrompt}
+            onGeneratePrompt={handleGeneratePrompt}
+          />
         </div>
 
         {/* 右栏：预览 & 生成结果 (40%) */}
@@ -278,7 +269,8 @@ export default function SceneWorkbench() {
           <div className="space-y-4">
             {/* 生成按钮 */}
             <button
-              disabled={state.isGenerating}
+              onClick={handleGenerateImage}
+              disabled={state.isGenerating || !state.prompt}
               className="w-full py-4 bg-primary text-background rounded-xl font-bold text-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {state.isGenerating ? (
@@ -294,9 +286,20 @@ export default function SceneWorkbench() {
               )}
             </button>
 
+            {/* 状态提示 */}
+            {!state.prompt && (
+              <div className="text-center text-sm text-muted py-2">
+                {state.promptMode === 'auto' || state.promptMode === 'hybrid'
+                  ? '请先选择场景标签并生成提示词'
+                  : '请在中栏输入提示词'}
+              </div>
+            )}
+
             {/* 费用预估 */}
             <div className="text-center text-xs text-muted">
               预估费用: {state.platform === 'dashscope' ? '免费额度' : '$0.02 / 张'}
+              <span className="mx-2">|</span>
+              尺寸: {state.outputSize}
             </div>
 
             {/* 预览区 */}
@@ -308,10 +311,14 @@ export default function SceneWorkbench() {
                   className="max-w-full max-h-full object-contain rounded-lg"
                 />
               ) : (
-                <div className="text-center text-muted">
+                <div className="text-center text-muted p-8">
                   <div className="text-6xl mb-4">🖼️</div>
                   <p className="text-sm">生成的场景图将显示在这里</p>
-                  <p className="text-xs mt-1">选择场景标签并点击生成</p>
+                  <p className="text-xs mt-2 text-muted/70">
+                    {state.selectedTags.length > 0
+                      ? `已选 ${state.selectedTags.length} 个场景标签`
+                      : '选择场景标签开始'}
+                  </p>
                 </div>
               )}
             </div>
@@ -319,13 +326,13 @@ export default function SceneWorkbench() {
             {/* 操作按钮（有图片时显示） */}
             {state.currentImage && (
               <div className="flex gap-2">
-                <button className="flex-1 py-2 bg-secondary text-foreground rounded-lg text-sm hover:bg-secondary-hover">
+                <button className="flex-1 py-2 bg-secondary text-foreground rounded-lg text-sm hover:bg-secondary-hover transition-colors">
                   🔄 重新生成
                 </button>
-                <button className="flex-1 py-2 bg-secondary text-foreground rounded-lg text-sm hover:bg-secondary-hover">
+                <button className="flex-1 py-2 bg-secondary text-foreground rounded-lg text-sm hover:bg-secondary-hover transition-colors">
                   📥 下载
                 </button>
-                <button className="flex-1 py-2 bg-primary/20 text-primary rounded-lg text-sm hover:bg-primary/30">
+                <button className="flex-1 py-2 bg-primary/20 text-primary rounded-lg text-sm hover:bg-primary/30 transition-colors">
                   ✅ 替换到主流程
                 </button>
               </div>
@@ -333,10 +340,11 @@ export default function SceneWorkbench() {
 
             {/* 历史记录区 */}
             <div>
-              <h3 className="text-sm font-medium text-foreground mb-2">
+              <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+                <span>📜</span>
                 历史记录
                 {state.history.length > 0 && (
-                  <span className="text-muted ml-2">({state.history.length})</span>
+                  <span className="text-muted">({state.history.length})</span>
                 )}
               </h3>
               {state.history.length === 0 ? (
@@ -348,7 +356,7 @@ export default function SceneWorkbench() {
                   {state.history.slice(0, 20).map((img) => (
                     <div
                       key={img.id}
-                      className="aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary"
+                      className="aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-primary transition-all"
                     >
                       <img
                         src={img.imageData}
