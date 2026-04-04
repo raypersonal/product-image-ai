@@ -1,15 +1,34 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import {
   ProductInfo,
   AnalysisResult,
   ImagePrompt,
   GeneratedImage,
-  IMAGE_TYPE_CONFIG,
-  ImageType,
-  ReferenceImage
+  ReferenceImage,
+  ALL_IMAGE_TYPES,
+  ImageTypeId,
+  getTypeConfig,
 } from '@/types';
+
+// 初始化默认的 enabledTypes（核心类型启用，附加类型禁用）
+function getDefaultEnabledTypes(): Record<string, boolean> {
+  const result: Record<string, boolean> = {};
+  ALL_IMAGE_TYPES.forEach(t => {
+    result[t.id] = t.isCore;
+  });
+  return result;
+}
+
+// 初始化默认的 typeSizeMap
+function getDefaultTypeSizeMap(): Record<string, string> {
+  const result: Record<string, string> = {};
+  ALL_IMAGE_TYPES.forEach(t => {
+    result[t.id] = t.defaultSize;
+  });
+  return result;
+}
 
 interface AppState {
   currentStep: number;
@@ -20,8 +39,14 @@ interface AppState {
   images: GeneratedImage[];
   isAnalyzing: boolean;
   isGeneratingPrompts: boolean;
+  // 图片生成模型
   selectedModel: string;
-  selectedSize: string;
+  // Prompt 生成模型
+  promptModel: string;
+  // 每个类型的启用状态
+  enabledTypes: Record<string, boolean>;
+  // 每个类型的尺寸
+  typeSizeMap: Record<string, string>;
 }
 
 interface AppContextType extends AppState {
@@ -39,9 +64,26 @@ interface AppContextType extends AppState {
   setIsAnalyzing: (value: boolean) => void;
   setIsGeneratingPrompts: (value: boolean) => void;
   setSelectedModel: (model: string) => void;
-  setSelectedSize: (size: string) => void;
+  setPromptModel: (model: string) => void;
+  // 类型启用/禁用
+  toggleType: (typeId: string) => void;
+  setEnabledTypes: (types: Record<string, boolean>) => void;
+  enableAllTypes: () => void;
+  disableAllTypes: () => void;
+  enableCoreTypesOnly: () => void;
+  // 类型尺寸
+  setTypeSize: (typeId: string, size: string) => void;
+  setTypeSizeMap: (map: Record<string, string>) => void;
+  // 计算辅助
+  getEnabledTypes: () => string[];
+  getTotalImageCount: () => number;
+  getEnabledTypeConfigs: () => typeof ALL_IMAGE_TYPES;
+  // 初始化和步骤控制
   initializeImages: () => void;
   canProceedToStep: (step: number) => boolean;
+  // 向后兼容
+  selectedSize: string;
+  setSelectedSize: (size: string) => void;
 }
 
 const defaultProductInfo: ProductInfo = {
@@ -65,7 +107,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingPrompts, setIsGeneratingPrompts] = useState(false);
   const [selectedModel, setSelectedModel] = useState('black-forest-labs/flux.2-flex');
-  const [selectedSize, setSelectedSize] = useState('1:1');
+  const [promptModel, setPromptModel] = useState('deepseek/deepseek-chat-v3-0324');
+  const [enabledTypes, setEnabledTypes] = useState<Record<string, boolean>>(getDefaultEnabledTypes);
+  const [typeSizeMap, setTypeSizeMap] = useState<Record<string, string>>(getDefaultTypeSizeMap);
+
+  // 向后兼容：selectedSize 用第一个启用类型的尺寸
+  const selectedSize = useMemo(() => {
+    const firstEnabled = ALL_IMAGE_TYPES.find(t => enabledTypes[t.id]);
+    return firstEnabled ? (typeSizeMap[firstEnabled.id] || firstEnabled.defaultSize) : '1:1';
+  }, [enabledTypes, typeSizeMap]);
+
+  const setSelectedSize = useCallback((size: string) => {
+    // 向后兼容：设置所有类型的尺寸
+    setTypeSizeMap(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => {
+        next[k] = size;
+      });
+      return next;
+    });
+  }, []);
 
   const addReferenceImage = useCallback((image: ReferenceImage) => {
     setReferenceImages(prev => [...prev, image]);
@@ -93,6 +154,60 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
+  // 类型启用/禁用
+  const toggleType = useCallback((typeId: string) => {
+    setEnabledTypes(prev => ({
+      ...prev,
+      [typeId]: !prev[typeId]
+    }));
+  }, []);
+
+  const enableAllTypes = useCallback(() => {
+    setEnabledTypes(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => { next[k] = true; });
+      return next;
+    });
+  }, []);
+
+  const disableAllTypes = useCallback(() => {
+    setEnabledTypes(prev => {
+      const next = { ...prev };
+      Object.keys(next).forEach(k => { next[k] = false; });
+      return next;
+    });
+  }, []);
+
+  const enableCoreTypesOnly = useCallback(() => {
+    setEnabledTypes(getDefaultEnabledTypes());
+  }, []);
+
+  // 类型尺寸
+  const setTypeSize = useCallback((typeId: string, size: string) => {
+    setTypeSizeMap(prev => ({
+      ...prev,
+      [typeId]: size
+    }));
+  }, []);
+
+  // 计算辅助函数
+  const getEnabledTypes = useCallback((): string[] => {
+    return Object.entries(enabledTypes)
+      .filter(([_, enabled]) => enabled)
+      .map(([id]) => id);
+  }, [enabledTypes]);
+
+  const getTotalImageCount = useCallback((): number => {
+    return getEnabledTypes().reduce((sum, typeId) => {
+      const config = getTypeConfig(typeId);
+      return sum + (config?.count || 0);
+    }, 0);
+  }, [getEnabledTypes]);
+
+  const getEnabledTypeConfigs = useCallback(() => {
+    return ALL_IMAGE_TYPES.filter(t => enabledTypes[t.id]);
+  }, [enabledTypes]);
+
   const initializeImages = useCallback(() => {
     setImages(currentImages => {
       // 只有当 images 为空时才初始化
@@ -102,9 +217,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         promptId: prompt.id,
         url: null,
         status: 'pending' as const,
+        aspectRatio: typeSizeMap[prompt.type] || '1:1',
       }));
     });
-  }, [prompts]);
+  }, [prompts, typeSizeMap]);
 
   const canProceedToStep = (step: number): boolean => {
     switch (step) {
@@ -135,6 +251,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         isAnalyzing,
         isGeneratingPrompts,
         selectedModel,
+        promptModel,
+        enabledTypes,
+        typeSizeMap,
         selectedSize,
         setCurrentStep,
         setProductInfo,
@@ -150,7 +269,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setIsAnalyzing,
         setIsGeneratingPrompts,
         setSelectedModel,
+        setPromptModel,
         setSelectedSize,
+        toggleType,
+        setEnabledTypes,
+        enableAllTypes,
+        disableAllTypes,
+        enableCoreTypesOnly,
+        setTypeSize,
+        setTypeSizeMap,
+        getEnabledTypes,
+        getTotalImageCount,
+        getEnabledTypeConfigs,
         initializeImages,
         canProceedToStep,
       }}
@@ -168,23 +298,23 @@ export function useApp() {
   return context;
 }
 
-// 辅助函数：生成初始prompts列表
-export function generateInitialPrompts(): ImagePrompt[] {
-  const prompts: ImagePrompt[] = [];
-  let globalIndex = 0;
+// 辅助函数：生成初始prompts列表（基于启用的类型）
+export function generateInitialPrompts(enabledTypes: Record<string, boolean>): ImagePrompt[] {
+  const promptsList: ImagePrompt[] = [];
 
-  (Object.entries(IMAGE_TYPE_CONFIG) as [ImageType, { name: string; count: number }][]).forEach(([type, config]) => {
-    for (let i = 0; i < config.count; i++) {
-      prompts.push({
-        id: `prompt-${type}-${i}`,
-        type,
-        typeName: config.name,
+  ALL_IMAGE_TYPES.forEach(typeConfig => {
+    if (!enabledTypes[typeConfig.id]) return;
+
+    for (let i = 0; i < typeConfig.count; i++) {
+      promptsList.push({
+        id: `prompt-${typeConfig.id}-${i}`,
+        type: typeConfig.id as ImageTypeId,
+        typeName: typeConfig.name,
         index: i + 1,
         prompt: '',
       });
-      globalIndex++;
     }
   });
 
-  return prompts;
+  return promptsList;
 }

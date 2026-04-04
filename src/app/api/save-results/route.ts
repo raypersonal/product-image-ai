@@ -11,6 +11,7 @@ interface ImageData {
   url: string | null;
   status: 'pending' | 'generating' | 'completed' | 'failed';
   error?: string;
+  aspectRatio?: string;
 }
 
 interface PromptData {
@@ -50,6 +51,9 @@ interface SaveRequest {
   prompts: PromptData[];
   analysisResult: AnalysisData | null;
   referenceImages?: ReferenceImageData[];
+  enabledTypes?: Record<string, boolean>;
+  typeSizeMap?: Record<string, string>;
+  estimatedCost?: number;
   startTime?: string;
 }
 
@@ -61,6 +65,13 @@ const TYPE_NAME_MAP: Record<string, string> = {
   detail: '细节图',
   usage: '使用图',
   handheld: '手持图',
+  aplus_standard: '标准A+图',
+  aplus_premium: '高级A+图',
+  brand_store_banner: '品牌旗舰店Banner',
+  brand_story: '品牌故事图',
+  store_tile: '旗舰店商品瓷砖',
+  video_cover: '视频封面图',
+  social_post: '社媒帖子图',
 };
 
 /**
@@ -118,7 +129,7 @@ async function downloadImage(url: string): Promise<Buffer | null> {
 export async function POST(request: NextRequest) {
   try {
     const body: SaveRequest = await request.json();
-    const { productName, model, aspectRatio, images, prompts, analysisResult, referenceImages, startTime } = body;
+    const { productName, model, aspectRatio, images, prompts, analysisResult, referenceImages, enabledTypes, typeSizeMap, estimatedCost, startTime } = body;
 
     if (!productName) {
       return NextResponse.json({ error: '缺少产品名称' }, { status: 400 });
@@ -159,9 +170,11 @@ export async function POST(request: NextRequest) {
     let failedCount = 0;
     const imageResults: Array<{
       id: number;
-      type: string;
+      typeId: string;
+      typeName: string;
       filename: string;
       prompt: string;
+      aspectRatio: string;
       status: 'success' | 'failed';
       generatedAt: string;
       duration: number;
@@ -211,12 +224,14 @@ export async function POST(request: NextRequest) {
 
       imageResults.push({
         id: imageIndex,
-        type: typeName,
+        typeId: prompt.type,
+        typeName,
         filename,
         prompt: prompt.prompt,
+        aspectRatio: image.aspectRatio || typeSizeMap?.[prompt.type] || aspectRatio || '1:1',
         status,
         generatedAt: now.toISOString(),
-        duration: 0, // 单张耗时暂无数据
+        duration: 0,
         ...(error && { error }),
       });
 
@@ -262,6 +277,9 @@ export async function POST(request: NextRequest) {
       successCount,
       failedCount,
       totalDuration,
+      estimatedCost: estimatedCost || 0,
+      enabledTypes: enabledTypes || {},
+      typeSizeMap: typeSizeMap || {},
       images: imageResults,
     };
     fs.writeFileSync(

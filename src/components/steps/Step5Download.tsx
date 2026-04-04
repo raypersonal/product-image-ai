@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { IMAGE_TYPE_CONFIG, ImageType } from '@/types';
+import { ALL_IMAGE_TYPES, calculateEstimatedCost, getTypeConfig } from '@/types';
 import JSZip from 'jszip';
 
 interface SaveResult {
@@ -14,7 +14,17 @@ interface SaveResult {
 }
 
 export default function Step5Download() {
-  const { prompts, images, productInfo, referenceImages, analysisResult, selectedModel, selectedSize } = useApp();
+  const {
+    prompts,
+    images,
+    productInfo,
+    referenceImages,
+    analysisResult,
+    selectedModel,
+    enabledTypes,
+    typeSizeMap,
+  } = useApp();
+
   const [isDownloading, setIsDownloading] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
@@ -24,14 +34,25 @@ export default function Step5Download() {
   const completedImages = images.filter(img => img.status === 'completed' && img.url);
   const failedImages = images.filter(img => img.status === 'failed');
 
-  const imagesByType = (Object.keys(IMAGE_TYPE_CONFIG) as ImageType[]).map(type => ({
-    type,
-    name: IMAGE_TYPE_CONFIG[type].name,
-    images: completedImages.filter(img => {
-      const prompt = prompts.find(p => p.id === img.promptId);
-      return prompt?.type === type;
-    }),
-  }));
+  // 按启用的类型分组
+  const imagesByType = useMemo(() => {
+    return ALL_IMAGE_TYPES
+      .filter(t => enabledTypes[t.id])
+      .map(typeConfig => ({
+        type: typeConfig.id,
+        name: typeConfig.name,
+        images: completedImages.filter(img => {
+          const prompt = prompts.find(p => p.id === img.promptId);
+          return prompt?.type === typeConfig.id;
+        }),
+      }))
+      .filter(group => group.images.length > 0);
+  }, [completedImages, prompts, enabledTypes]);
+
+  // 计算预估费用
+  const estimatedCost = useMemo(() => {
+    return calculateEstimatedCost(images.length, selectedModel);
+  }, [images.length, selectedModel]);
 
   const downloadSingleImage = async (imageUrl: string, filename: string) => {
     try {
@@ -117,11 +138,14 @@ export default function Step5Download() {
         body: JSON.stringify({
           productName: productInfo.name || '未命名产品',
           model: selectedModel,
-          aspectRatio: selectedSize,
+          aspectRatio: '1:1', // 向后兼容
           images,
           prompts,
           analysisResult,
           referenceImages,
+          enabledTypes,
+          typeSizeMap,
+          estimatedCost,
         }),
       });
 

@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductInfo, AnalysisResult, IMAGE_TYPE_CONFIG, ImageType } from '@/types';
+import { ProductInfo, AnalysisResult, ImageTypeId, ImagePrompt } from '@/types';
 
-const SYSTEM_PROMPT = `You are an expert Amazon product photographer and AI image prompt engineer.
+// App Router: 设置最大执行时间
+export const maxDuration = 60;
+
+interface EnabledTypeConfig {
+  id: string;
+  name: string;
+  count: number;
+  promptHint: string;
+}
+
+function buildSystemPrompt(enabledTypes: EnabledTypeConfig[]): string {
+  const typeInstructions = enabledTypes.map(t =>
+    `- ${t.name} (${t.id}): ${t.count} prompts. Style hint: ${t.promptHint}`
+  ).join('\n');
+
+  return `You are an expert Amazon product photographer and AI image prompt engineer.
 
 Your task is to generate detailed, high-quality prompts for AI image generation (Flux model) based on product information and analysis.
 
@@ -17,32 +32,25 @@ IMPORTANT RULES:
    - Style and mood
    - Camera angle
    - Props and accessories (if applicable)
-4. For Amazon product images, follow these guidelines:
-   - Main images: Clean white background, product fills 85% of frame
-   - Selling point images: Highlight specific features with call-outs or visual emphasis
-   - Scene images: Lifestyle settings showing product in use
-   - Detail images: Close-up macro shots of textures, materials, patterns
-   - Usage images: Step-by-step or demonstration shots
-   - Handheld images: Product held by model hands for scale reference
+
+IMAGE TYPES TO GENERATE:
+${typeInstructions}
+
+For each type, follow the style hint to create appropriate prompts.
 
 CRITICAL OUTPUT FORMAT:
 - You MUST respond with ONLY a valid JSON object
 - NO markdown code fences (no \`\`\`json or \`\`\`)
 - NO explanations or additional text before or after the JSON
 - NO comments inside the JSON
-- The JSON must have this exact structure:
+- The JSON must have this exact structure with ALL requested types:
 {
-  "main": ["prompt1", "prompt2", ...],
-  "sellingPoint": ["prompt1", "prompt2", ...],
-  "scene": ["prompt1", "prompt2", ...],
-  "detail": ["prompt1", "prompt2", ...],
-  "usage": ["prompt1", "prompt2", ...],
-  "handheld": ["prompt1", "prompt2", ...]
+${enabledTypes.map(t => `  "${t.id}": ["prompt1", "prompt2", ...]`).join(',\n')}
 }`;
+}
 
 /**
  * 清洗 AI 返回的 JSON 文本
- * 处理各种常见问题：markdown代码块、多余文字、BOM头等
  */
 function cleanJsonResponse(text: string): string {
   let cleaned = text;
@@ -61,12 +69,10 @@ function cleanJsonResponse(text: string): string {
 
   // 4. 如果不是以 { 或 [ 开头，尝试提取 JSON
   if (!cleaned.startsWith('{') && !cleaned.startsWith('[')) {
-    // 尝试找对象
     const objMatch = cleaned.match(/\{[\s\S]*\}/);
     if (objMatch) {
       cleaned = objMatch[0];
     } else {
-      // 尝试找数组
       const arrMatch = cleaned.match(/\[[\s\S]*\]/);
       if (arrMatch) {
         cleaned = arrMatch[0];
@@ -82,15 +88,8 @@ function cleanJsonResponse(text: string): string {
  */
 function tryFixJson(text: string): string {
   let fixed = text;
-
-  // 修复末尾多余逗号 (如 [1,2,3,] 或 {"a":1,})
   fixed = fixed.replace(/,(\s*[\]\}])/g, '$1');
-
-  // 单引号替换为双引号（简单情况）
-  // 注意：这个处理比较粗暴，可能会破坏包含单引号的字符串值
-  // 只在第一次解析失败时尝试
   fixed = fixed.replace(/'/g, '"');
-
   return fixed;
 }
 
@@ -100,18 +99,15 @@ function tryFixJson(text: string): string {
 function parseJsonWithRetry(text: string): unknown {
   const cleaned = cleanJsonResponse(text);
 
-  // 第一次尝试
   try {
     return JSON.parse(cleaned);
   } catch (firstError) {
     console.log('First JSON parse attempt failed, trying to fix...');
 
-    // 第二次尝试：修复常见问题
     try {
       const fixed = tryFixJson(cleaned);
       return JSON.parse(fixed);
     } catch (secondError) {
-      // 两次都失败，抛出详细错误
       throw new Error(
         `JSON解析失败。原始内容前500字符: ${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`
       );
@@ -122,12 +118,25 @@ function parseJsonWithRetry(text: string): unknown {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { productInfo, analysisResult } = body as {
+    const {
+      productInfo,
+      analysisResult,
+      enabledTypes,
+      model,
+      singleType,
+      singleIndex,
+      promptHint,
+    } = body as {
       productInfo: ProductInfo;
       analysisResult: AnalysisResult;
+      enabledTypes?: EnabledTypeConfig[];
+      model?: string;
+      singleType?: string;
+      singleIndex?: number;
+      promptHint?: string;
       apiKey?: string;
     };
-    // 优先使用环境变量，其次使用前端传来的 apiKey
+
     const apiKey = process.env.OPENROUTER_API_KEY || body.apiKey;
 
     if (!apiKey) {
@@ -144,6 +153,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 使用的模型
+    const selectedModel = model || 'deepseek/deepseek-chat-v3-0324';
+
+    // 默认的 enabledTypes（向后兼容）
+    const defaultEnabledTypes: EnabledTypeConfig[] = [
+      { id: 'main', name: '主图', count: 6, promptHint: 'Amazon main product image, clean pure white background' },
+      { id: 'sellingPoint', name: '卖点图', count: 7, promptHint: 'Amazon infographic style, highlight features' },
+      { id: 'scene', name: '场景图', count: 7, promptHint: 'Lifestyle scene showing product in use' },
+      { id: 'detail', name: '细节图', count: 2, promptHint: 'Close-up macro shot of product details' },
+      { id: 'usage', name: '使用图', count: 2, promptHint: 'Step-by-step demonstration' },
+      { id: 'handheld', name: '手持图', count: 2, promptHint: 'Product held by human hands for scale' },
+    ];
+
+    const typesToGenerate = enabledTypes || defaultEnabledTypes;
+    const systemPrompt = buildSystemPrompt(typesToGenerate);
+
     // 构建参考图片分析部分
     let referenceSection = '';
     if (analysisResult.referenceAnalysis) {
@@ -156,10 +181,11 @@ Reference Images Analysis (IMPORTANT - Use these details for accurate product re
 - Competitive Differentiation: ${ref.competitorDiff}
 - Design Elements to Incorporate: ${ref.designElements}
 
-CRITICAL: For scene, usage, and handheld images, you MUST incorporate the actual product colors, textures, and proportions from the reference analysis above. The generated images should accurately represent the real product.`;
+CRITICAL: For scene, usage, and handheld images, you MUST incorporate the actual product colors, textures, and proportions from the reference analysis above.`;
     }
 
-    const userPrompt = `Generate AI image prompts for the following product:
+    // 构建用户提示
+    let userPrompt = `Generate AI image prompts for the following product:
 
 Product Name: ${productInfo.name}
 Category: ${productInfo.category}
@@ -175,15 +201,38 @@ AI Analysis Results:
 - Key Selling Points: ${analysisResult.sellingPoints.join(', ')}
 - Suggested Scenes: ${analysisResult.scenes.join(', ')}${referenceSection}
 
-Generate prompts for:
-- Main Images: ${IMAGE_TYPE_CONFIG.main.count} prompts
-- Selling Point Images: ${IMAGE_TYPE_CONFIG.sellingPoint.count} prompts
-- Scene Images: ${IMAGE_TYPE_CONFIG.scene.count} prompts
-- Detail Images: ${IMAGE_TYPE_CONFIG.detail.count} prompts
-- Usage Images: ${IMAGE_TYPE_CONFIG.usage.count} prompts
-- Handheld Images: ${IMAGE_TYPE_CONFIG.handheld.count} prompts
+Generate prompts for these types:
+${typesToGenerate.map(t => `- ${t.name}: ${t.count} prompts`).join('\n')}
 
 IMPORTANT: Return ONLY the JSON object. No markdown, no code fences, no explanation.`;
+
+    // 如果是重新生成单个 prompt
+    if (singleType !== undefined && singleIndex !== undefined) {
+      const typeConfig = typesToGenerate.find(t => t.id === singleType);
+      if (!typeConfig) {
+        return NextResponse.json(
+          { error: '无效的图片类型' },
+          { status: 400 }
+        );
+      }
+
+      userPrompt = `Regenerate a SINGLE prompt for:
+- Type: ${typeConfig.name} (${singleType})
+- Index: ${singleIndex + 1}
+- Style hint: ${promptHint || typeConfig.promptHint}
+
+Product Name: ${productInfo.name}
+Description: ${productInfo.description}
+Style: ${analysisResult.style}
+Color Palette: ${analysisResult.colorPalette}${referenceSection}
+
+Return ONLY a JSON object with this exact structure:
+{
+  "${singleType}": ["the_single_prompt_here"]
+}`;
+    }
+
+    console.log(`=== Generating prompts with model: ${selectedModel} ===`);
 
     const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -194,13 +243,13 @@ IMPORTANT: Return ONLY the JSON object. No markdown, no code fences, no explanat
         'X-Title': 'Product Image AI',
       },
       body: JSON.stringify({
-        model: 'deepseek/deepseek-chat',
+        model: selectedModel,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },
         ],
         temperature: 0.7,
-        max_tokens: 8000,
+        max_tokens: 10000,
       }),
     });
 
@@ -223,7 +272,6 @@ IMPORTANT: Return ONLY the JSON object. No markdown, no code fences, no explanat
       );
     }
 
-    // 打印原始内容便于调试
     console.log('=== Raw AI Response ===');
     console.log(content.substring(0, 500) + (content.length > 500 ? '...' : ''));
     console.log('=== End Raw Response ===');
@@ -232,23 +280,17 @@ IMPORTANT: Return ONLY the JSON object. No markdown, no code fences, no explanat
       const promptsData = parseJsonWithRetry(content) as Record<string, string[]>;
 
       // 转换为统一格式
-      const prompts: Array<{
-        id: string;
-        type: ImageType;
-        typeName: string;
-        index: number;
-        prompt: string;
-      }> = [];
+      const prompts: ImagePrompt[] = [];
 
-      (Object.entries(IMAGE_TYPE_CONFIG) as [ImageType, { name: string; count: number }][]).forEach(([type, config]) => {
-        const typePrompts = promptsData[type] || [];
-        for (let i = 0; i < config.count; i++) {
+      typesToGenerate.forEach(typeConfig => {
+        const typePrompts = promptsData[typeConfig.id] || [];
+        for (let i = 0; i < typeConfig.count; i++) {
           prompts.push({
-            id: `prompt-${type}-${i}`,
-            type,
-            typeName: config.name,
+            id: `prompt-${typeConfig.id}-${i}`,
+            type: typeConfig.id as ImageTypeId,
+            typeName: typeConfig.name,
             index: i + 1,
-            prompt: typePrompts[i] || `[待生成] ${config.name} ${i + 1}`,
+            prompt: typePrompts[i] || `[待生成] ${typeConfig.name} ${i + 1}`,
           });
         }
       });
