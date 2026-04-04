@@ -11,6 +11,8 @@ import {
   getAdditionalTypes,
   isDashScopeModel,
   isFreeTierModel,
+  getAspectRatioStyle,
+  isWideAspectRatio,
 } from '@/types';
 
 export default function Step4Generate() {
@@ -248,10 +250,17 @@ export default function Step4Generate() {
             <div className="grid grid-cols-3 gap-4">
               {typeImages.map((image) => {
                 const prompt = prompts.find(p => p.id === image.promptId);
+                // 获取当前类型的宽高比
+                const sizeOption = typeConfig.sizeOptions.find(s => s.value === currentSize);
+                const aspectRatio = sizeOption?.aspectRatio || currentSize || '1:1';
+                const aspectStyle = getAspectRatioStyle(aspectRatio);
+                const isWide = isWideAspectRatio(aspectRatio);
+
                 return (
                   <div
                     key={image.id}
-                    className="aspect-square bg-background rounded-lg overflow-hidden relative border border-border"
+                    className={`bg-background rounded-lg overflow-hidden relative border border-border ${isWide ? 'col-span-3' : ''}`}
+                    style={{ aspectRatio: aspectStyle }}
                   >
                     {image.status === 'pending' && (
                       <div className="absolute inset-0 flex flex-col items-center justify-center text-muted">

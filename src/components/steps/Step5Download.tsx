@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { ALL_IMAGE_TYPES, calculateEstimatedCost, getTypeConfig } from '@/types';
+import { ALL_IMAGE_TYPES, calculateEstimatedCost, getTypeConfig, getAspectRatioStyle, isWideAspectRatio } from '@/types';
 import JSZip from 'jszip';
 
 interface SaveResult {
@@ -56,19 +56,78 @@ export default function Step5Download() {
 
   const downloadSingleImage = async (imageUrl: string, filename: string) => {
     try {
-      const response = await fetch(imageUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // 判断是 base64 还是 URL
+      if (imageUrl.startsWith('data:')) {
+        // Base64 格式：直接转 blob
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else {
+        // URL 格式：通过代理 API 下载（避免 CORS 问题）
+        try {
+          const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
+          if (!response.ok) throw new Error('Proxy failed');
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        } catch {
+          // 代理失败，尝试直接下载（可能有 CORS）
+          const response = await fetch(imageUrl, { mode: 'cors' });
+          const blob = await response.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
+      }
     } catch (error) {
       console.error('Download failed:', error);
-      alert('下载失败，请重试');
+      // 最后的回退：在新窗口打开图片让用户右键保存
+      window.open(imageUrl, '_blank');
+      alert('无法自动下载，已在新窗口打开图片，请右键保存');
+    }
+  };
+
+  // 获取图片 blob（支持 base64 和 URL）
+  const fetchImageBlob = async (imageUrl: string): Promise<Blob | null> => {
+    try {
+      if (imageUrl.startsWith('data:')) {
+        // Base64 格式
+        const response = await fetch(imageUrl);
+        return await response.blob();
+      } else {
+        // URL 格式：优先通过代理下载
+        try {
+          const response = await fetch(`/api/proxy-image?url=${encodeURIComponent(imageUrl)}`);
+          if (response.ok) {
+            return await response.blob();
+          }
+        } catch {
+          // 代理失败，尝试直接下载
+        }
+        const response = await fetch(imageUrl, { mode: 'cors' });
+        return await response.blob();
+      }
+    } catch (error) {
+      console.error('Failed to fetch image:', error);
+      return null;
     }
   };
 
@@ -95,12 +154,11 @@ export default function Step5Download() {
           const prompt = prompts.find(p => p.id === image.promptId);
           const filename = `${name}_${prompt?.index || 1}.png`;
 
-          try {
-            const response = await fetch(image.url);
-            const blob = await response.blob();
+          const blob = await fetchImageBlob(image.url);
+          if (blob) {
             folder.file(filename, blob);
-          } catch (error) {
-            console.error(`Failed to add ${filename}:`, error);
+          } else {
+            console.error(`Failed to add ${filename}`);
           }
         }
       }
@@ -277,10 +335,19 @@ export default function Step5Download() {
                       const prompt = prompts.find(p => p.id === image.promptId);
                       const filename = `${name}_${prompt?.index || 1}.png`;
 
+                      // 获取当前类型的宽高比
+                      const typeConfig = getTypeConfig(type);
+                      const currentSize = typeSizeMap[type] || typeConfig?.defaultSize || '1:1';
+                      const sizeOption = typeConfig?.sizeOptions.find(s => s.value === currentSize);
+                      const aspectRatio = sizeOption?.aspectRatio || currentSize || '1:1';
+                      const aspectStyle = getAspectRatioStyle(aspectRatio);
+                      const isWide = isWideAspectRatio(aspectRatio);
+
                       return (
                         <div
                           key={image.id}
-                          className="group relative aspect-square bg-secondary rounded-lg overflow-hidden border border-border hover:border-primary transition-colors cursor-pointer"
+                          className={`group relative bg-secondary rounded-lg overflow-hidden border border-border hover:border-primary transition-colors cursor-pointer ${isWide ? 'col-span-3' : ''}`}
+                          style={{ aspectRatio: aspectStyle }}
                           onClick={() => setSelectedImage(image.url)}
                         >
                           <img

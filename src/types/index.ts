@@ -449,3 +449,32 @@ export function convertAspectRatioToDashScope(aspectRatio: string): string {
   };
   return sizeMap[aspectRatio] || '1024*1024';
 }
+
+// 获取 CSS aspect-ratio 值（用于预览容器）
+export function getAspectRatioStyle(aspectRatio: string): string {
+  // 标准比例直接转换
+  const ratioMap: Record<string, string> = {
+    '1:1': '1/1',
+    '4:3': '4/3',
+    '3:4': '3/4',
+    '16:9': '16/9',
+    '9:16': '9/16',
+    '21:9': '21/9',
+    '2:1': '2/1',
+    '3:2': '3/2',
+    // 亚马逊自定义尺寸
+    '970:600': '970/600',    // ~1.62:1
+    '1464:600': '1464/600',  // ~2.44:1
+    '3000:600': '5/1',       // 5:1 超宽
+    '1500:600': '5/2',       // 2.5:1
+    '1464:625': '1464/625',  // ~2.34:1
+    '1200:628': '1200/628',  // ~1.91:1
+  };
+  return ratioMap[aspectRatio] || '1/1';
+}
+
+// 判断是否为宽幅比例（需要占满整行）
+export function isWideAspectRatio(aspectRatio: string): boolean {
+  const wideRatios = ['21:9', '2:1', '16:9', '3000:600', '1500:600', '1464:600', '1464:625', '1200:628', '970:600'];
+  return wideRatios.includes(aspectRatio);
+}
