@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ProductInfo, AnalysisResult, ImageTypeId, ImagePrompt, isDashScopeModel } from '@/types';
+import { ProductInfo, AnalysisResult, ImageTypeId, ImagePrompt, isDashScopeModel, ALL_IMAGE_TYPES } from '@/types';
 
 // DashScope API 基础配置
 const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -223,18 +223,21 @@ IMPORTANT: Return ONLY the JSON object. No markdown, no code fences, no explanat
 
     // 如果是重新生成单个 prompt
     if (singleType !== undefined && singleIndex !== undefined) {
-      const typeConfig = typesToGenerate.find(t => t.id === singleType);
-      if (!typeConfig) {
+      // 从 ALL_IMAGE_TYPES 查找类型配置，支持所有类型（包括附加类型）
+      const typeConfigFromAll = ALL_IMAGE_TYPES.find(t => t.id === singleType);
+      if (!typeConfigFromAll) {
         return NextResponse.json(
           { error: '无效的图片类型' },
           { status: 400 }
         );
       }
 
+      console.log(`=== Regenerating single prompt: ${typeConfigFromAll.name} #${singleIndex + 1} ===`);
+
       userPrompt = `Regenerate a SINGLE prompt for:
-- Type: ${typeConfig.name} (${singleType})
+- Type: ${typeConfigFromAll.name} (${singleType})
 - Index: ${singleIndex + 1}
-- Style hint: ${promptHint || typeConfig.promptHint}
+- Style hint: ${promptHint || typeConfigFromAll.promptHint}
 
 Product Name: ${productInfo.name}
 Description: ${productInfo.description}
@@ -306,6 +309,26 @@ Return ONLY a JSON object with this exact structure:
       // 转换为统一格式
       const prompts: ImagePrompt[] = [];
 
+      // 如果是单条重新生成，只返回该单条
+      if (singleType !== undefined && singleIndex !== undefined) {
+        const typeConfigFromAll = ALL_IMAGE_TYPES.find(t => t.id === singleType);
+        if (typeConfigFromAll) {
+          const typePrompts = promptsData[singleType] || [];
+          if (typePrompts.length > 0) {
+            prompts.push({
+              id: `prompt-${singleType}-${singleIndex}`,
+              type: singleType as ImageTypeId,
+              typeName: typeConfigFromAll.name,
+              index: singleIndex + 1,
+              prompt: typePrompts[0],
+            });
+          }
+        }
+        console.log(`=== Successfully regenerated 1 prompt for ${singleType} ===`);
+        return NextResponse.json({ prompts });
+      }
+
+      // 全量生成：遍历所有启用的类型
       typesToGenerate.forEach(typeConfig => {
         const typePrompts = promptsData[typeConfig.id] || [];
         for (let i = 0; i < typeConfig.count; i++) {

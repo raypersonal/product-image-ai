@@ -53,7 +53,21 @@ async function generateWithDashScope(
   const size = convertAspectRatioToDashScope(aspectRatio);
 
   console.log(`=== DashScope Image Generation ===`);
-  console.log(`Model: ${model}, Size: ${size}`);
+  console.log(`Model: ${model}, AspectRatio: ${aspectRatio} → Size: ${size}`);
+
+  // 构建请求体
+  const dashScopeRequestBody = {
+    model,
+    input: {
+      prompt,
+    },
+    parameters: {
+      size,
+      n: 1,
+    },
+  };
+
+  console.log('DashScope request body:', JSON.stringify(dashScopeRequestBody, null, 2));
 
   // Step 1: 提交异步任务
   const createResponse = await fetch(DASHSCOPE_IMAGE_URL, {
@@ -63,16 +77,7 @@ async function generateWithDashScope(
       'Authorization': `Bearer ${apiKey}`,
       'X-DashScope-Async': 'enable',
     },
-    body: JSON.stringify({
-      model,
-      input: {
-        prompt,
-      },
-      parameters: {
-        size,
-        n: 1,
-      },
-    }),
+    body: JSON.stringify(dashScopeRequestBody),
   });
 
   if (!createResponse.ok) {
@@ -232,6 +237,12 @@ export async function POST(request: NextRequest) {
       aspectRatio?: string;
       apiKey?: string;
     };
+
+    // 调试日志：打印前端传来的完整参数
+    console.log('=== Generate Image Request ===');
+    console.log(`Model: ${model}`);
+    console.log(`AspectRatio from frontend: "${aspectRatio}" (type: ${typeof aspectRatio})`);
+    console.log(`Prompt length: ${prompt?.length || 0}`);
 
     // API Keys
     const openRouterKey = process.env.OPENROUTER_API_KEY || body.apiKey;

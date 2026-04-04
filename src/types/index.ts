@@ -427,8 +427,10 @@ export function formatCostDisplay(imageCount: number, modelId: string): string {
 }
 
 // DashScope 尺寸格式转换（1:1 -> 1024*1024）
+// 支持标准比例和亚马逊自定义尺寸（如 3000:600）
 export function convertAspectRatioToDashScope(aspectRatio: string): string {
   const sizeMap: Record<string, string> = {
+    // 标准宽高比
     '1:1': '1024*1024',
     '4:3': '1024*768',
     '3:4': '768*1024',
@@ -437,6 +439,13 @@ export function convertAspectRatioToDashScope(aspectRatio: string): string {
     '21:9': '1260*540',
     '2:1': '1024*512',
     '3:2': '1024*683',
+    // 亚马逊自定义尺寸（映射到最接近的支持尺寸）
+    '970:600': '1024*683',   // A+标准模块 ~1.62:1 → 3:2
+    '1464:600': '1280*720',  // 高级A+横幅 ~2.44:1 → 16:9
+    '3000:600': '1260*540',  // 旗舰店横幅 5:1 → 21:9（最宽）
+    '1500:600': '1280*720',  // 旗舰店横幅 2.5:1 → 16:9
+    '1464:625': '1280*720',  // 品牌故事 ~2.34:1 → 16:9
+    '1200:628': '1024*512',  // 社媒横图 ~1.91:1 → 2:1
   };
   return sizeMap[aspectRatio] || '1024*1024';
 }
