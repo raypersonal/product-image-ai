@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import SceneProductUpload from './SceneProductUpload';
 import ScenePromptEditor from './ScenePromptEditor';
 import SceneModelSelector from './SceneModelSelector';
@@ -96,6 +96,12 @@ export default function SceneWorkbench() {
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
+  // 使用 ref 保存最新的 state，避免闭包陈旧问题
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // 更新产品图
   const addProductImage = useCallback((image: UploadedImage) => {
     setState(prev => ({
@@ -164,31 +170,35 @@ export default function SceneWorkbench() {
 
   // 生成提示词（使用 Mock 或 Gemini）
   const handleGeneratePrompt = useCallback(async () => {
+    // 使用 ref 获取最新的 state，避免闭包陈旧问题
+    const currentState = stateRef.current;
     console.log('>>> handleGeneratePrompt called');
+    console.log('>>> selectedTags:', currentState.selectedTags);
+
     setState(prev => ({ ...prev, isGeneratingPrompt: true, error: null }));
 
     try {
       // 如果有产品图，使用 Gemini 分析
-      if (state.productImages.length > 0) {
+      if (currentState.productImages.length > 0) {
         console.log('\n>>> Generating prompt with Gemini Vision (product image detected)');
-        console.log('>>> Product Name:', state.productInfo.name || '(empty)');
+        console.log('>>> Product Name:', currentState.productInfo.name || '(empty)');
 
         const response = await fetch('/api/scene/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            productImageBase64: state.productImages[0].base64,
-            productName: state.productInfo.name,
-            productCategory: state.productInfo.category,
-            productDescription: state.productInfo.description,
-            sceneTags: state.selectedTags.filter(t =>
+            productImageBase64: currentState.productImages[0].base64,
+            productName: currentState.productInfo.name,
+            productCategory: currentState.productInfo.category,
+            productDescription: currentState.productInfo.description,
+            sceneTags: currentState.selectedTags.filter(t =>
               ['birthday', 'wedding', 'valentines', 'halloween', 'christmas', 'july4th', 'easter', 'babyshower',
                'outdoor', 'home', 'beach', 'garden', 'studio', 'white'].includes(t)
             ),
-            styleTags: state.selectedTags.filter(t =>
+            styleTags: currentState.selectedTags.filter(t =>
               ['minimalist', 'luxury', 'rustic', 'modern', 'cute', 'spring', 'summer', 'autumn', 'winter'].includes(t)
             ),
-            referenceWeight: state.referenceWeight,
+            referenceWeight: currentState.referenceWeight,
             useMock: false, // 使用真实 Gemini API
           }),
         });
@@ -209,15 +219,16 @@ export default function SceneWorkbench() {
       } else {
         // 没有产品图，使用简单的 Prompt 生成
         console.log('\n>>> Generating prompt without image (using mock generator)');
-        console.log('>>> Product Name:', state.productInfo.name || '(empty)');
+        console.log('>>> selectedTags:', currentState.selectedTags);
+        console.log('>>> Product Name:', currentState.productInfo.name || '(empty)');
 
         const result = await generateScenePrompt({
-          productName: state.productInfo.name,
-          productCategory: state.productInfo.category,
-          productDescription: state.productInfo.description,
-          selectedTags: state.selectedTags,
-          styleStrength: state.styleStrength,
-          referenceWeight: state.referenceWeight,
+          productName: currentState.productInfo.name,
+          productCategory: currentState.productInfo.category,
+          productDescription: currentState.productInfo.description,
+          selectedTags: currentState.selectedTags,
+          styleStrength: currentState.styleStrength,
+          referenceWeight: currentState.referenceWeight,
           hasReferenceImages: false,
         });
 
@@ -237,7 +248,7 @@ export default function SceneWorkbench() {
         error: error instanceof Error ? error.message : '提示词生成失败',
       }));
     }
-  }, [state.productImages, state.productInfo, state.selectedTags, state.styleStrength, state.referenceWeight]);
+  }, []); // 使用 stateRef 避免依赖，防止闭包陈旧
 
   // 生成图片
   const handleGenerateImage = useCallback(async () => {
