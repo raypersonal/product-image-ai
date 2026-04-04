@@ -23,6 +23,8 @@ interface ScenePreviewProps {
   outputSize: string;
   platform: 'dashscope' | 'openrouter';
   imageModel: string;
+  // 是否有产品图（决定使用图生图还是文生图）
+  hasProductImages?: boolean;
 }
 
 export default function ScenePreview({
@@ -39,12 +41,17 @@ export default function ScenePreview({
   outputSize,
   platform,
   imageModel,
+  hasProductImages = false,
 }: ScenePreviewProps) {
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
 
+  // 生成模式
+  const generationMode = hasProductImages ? 'img2img' : 'text2img';
+
   // 计算费用预估
   const getEstimatedCost = () => {
+    if (hasProductImages) return '免费额度 (图生图)';
     if (platform === 'dashscope') return '免费额度';
     if (imageModel.includes('schnell')) return '$0.003';
     if (imageModel.includes('pro')) return '$0.04';
@@ -111,12 +118,15 @@ export default function ScenePreview({
       )}
 
       {/* 配置信息 */}
-      <div className="flex items-center justify-center gap-4 text-xs text-muted">
+      <div className="flex items-center justify-center gap-3 text-xs text-muted flex-wrap">
+        <span className={`px-2 py-0.5 rounded ${hasProductImages ? 'bg-green-600/20 text-green-400' : 'bg-blue-600/20 text-blue-400'}`}>
+          {hasProductImages ? '🖼️ 图生图' : '📝 文生图'}
+        </span>
         <span>尺寸: {outputSize}</span>
         <span>|</span>
         <span>费用: {getEstimatedCost()}</span>
         <span>|</span>
-        <span>{platform === 'dashscope' ? '百炼' : 'OpenRouter'}</span>
+        <span>{hasProductImages ? 'wan2.6-image' : platform === 'dashscope' ? '百炼' : 'OpenRouter'}</span>
       </div>
 
       {/* 预览区 */}

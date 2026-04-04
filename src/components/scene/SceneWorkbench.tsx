@@ -233,32 +233,69 @@ export default function SceneWorkbench() {
 
     setState(prev => ({ ...prev, isGenerating: true, generationProgress: 0, error: null }));
 
-    console.log('\n>>> Starting image generation...');
-    console.log('>>> Prompt:', state.prompt.substring(0, 200) + '...');
-    console.log('>>> Negative Prompt:', state.negativePrompt || '(none)');
-    console.log('>>> Model:', state.imageModel);
-    console.log('>>> Platform:', state.platform);
+    // 判断是否使用图生图模式
+    const useImg2Img = state.productImages.length > 0;
+
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║           STARTING IMAGE GENERATION                         ║');
+    console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log(`║ Mode: ${useImg2Img ? '🖼️ 图生图 (wan2.6-image)' : '📝 文生图 (text2img)'}`);
+    console.log(`║ Product Images: ${state.productImages.length}`);
+    console.log(`║ Product Name: ${state.productInfo.name || '(empty)'}`);
+    console.log('║ Prompt:', state.prompt.substring(0, 150) + '...');
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
 
     // 模拟进度
     const progressInterval = setInterval(() => {
       setState(prev => ({
         ...prev,
-        generationProgress: Math.min(prev.generationProgress + Math.random() * 15, 90),
+        generationProgress: Math.min(prev.generationProgress + Math.random() * 10, 85),
       }));
-    }, 500);
+    }, 800);
 
     try {
-      const response = await fetch('/api/scene/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: state.prompt,
-          negativePrompt: state.negativePrompt,
-          model: state.imageModel,
-          aspectRatio: state.outputSize,
-          platform: state.platform,
-        }),
-      });
+      let response: Response;
+
+      if (useImg2Img) {
+        // 使用图生图 API - 保持产品主体，替换背景
+        console.log('>>> Using IMG2IMG API (wan2.6-image)...');
+
+        // 构建场景描述（从选中的标签生成）
+        const sceneDescription = state.selectedTags.length > 0
+          ? `将产品放置在${state.selectedTags.join('、')}场景中`
+          : '将产品放置在专业摄影场景中';
+
+        response = await fetch('/api/scene/img2img', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            productImageBase64: state.productImages[0].base64,
+            scenePrompt: state.prompt,
+            negativePrompt: state.negativePrompt,
+            size: state.outputSize === '1:1' ? '1024*1024' :
+                  state.outputSize === '4:3' ? '1024*768' :
+                  state.outputSize === '3:4' ? '768*1024' :
+                  state.outputSize === '16:9' ? '1280*720' :
+                  state.outputSize === '9:16' ? '720*1280' : '1024*1024',
+            productName: state.productInfo.name,
+          }),
+        });
+      } else {
+        // 使用文生图 API
+        console.log('>>> Using TEXT2IMG API...');
+
+        response = await fetch('/api/scene/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            prompt: state.prompt,
+            negativePrompt: state.negativePrompt,
+            model: state.imageModel,
+            aspectRatio: state.outputSize,
+            platform: state.platform,
+          }),
+        });
+      }
 
       clearInterval(progressInterval);
 
@@ -273,7 +310,7 @@ export default function SceneWorkbench() {
         id: `scene-${Date.now()}`,
         imageData: result.imageUrl,
         prompt: state.prompt,
-        model: state.imageModel,
+        model: useImg2Img ? 'wan2.6-image (img2img)' : state.imageModel,
         tags: state.selectedTags,
         timestamp: Date.now(),
         size: state.outputSize,
@@ -286,9 +323,11 @@ export default function SceneWorkbench() {
         currentImage: newImage,
         history: [newImage, ...prev.history].slice(0, 20),
       }));
+
+      console.log('✅ Image generation completed!');
     } catch (error) {
       clearInterval(progressInterval);
-      console.error('Failed to generate image:', error);
+      console.error('❌ Failed to generate image:', error);
       setState(prev => ({
         ...prev,
         isGenerating: false,
@@ -296,7 +335,7 @@ export default function SceneWorkbench() {
         error: error instanceof Error ? error.message : '图片生成失败',
       }));
     }
-  }, [state.prompt, state.negativePrompt, state.imageModel, state.outputSize, state.platform, state.selectedTags]);
+  }, [state.prompt, state.negativePrompt, state.imageModel, state.outputSize, state.platform, state.selectedTags, state.productImages, state.productInfo.name]);
 
   // 重新生成
   const handleRegenerate = useCallback(() => {
