@@ -14,14 +14,14 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen overflow-hidden">
       {/* Top Tab Navigation */}
-      <div className="flex-shrink-0 bg-[#0d1117] border-b border-border">
-        <div className="flex items-center justify-center gap-2 p-2">
+      <div className="flex-shrink-0 bg-[#0d1117] border-b border-gray-700">
+        <div className="flex items-center justify-center gap-4 p-3">
           <button
             onClick={() => setActiveMode('batch')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+            className={`px-8 py-3 rounded-lg font-semibold text-base transition-all duration-200 ${
               activeMode === 'batch'
-                ? 'bg-primary/15 text-primary border-b-2 border-primary'
-                : 'text-muted hover:text-foreground hover:bg-secondary/50'
+                ? 'bg-green-600 text-white shadow-lg shadow-green-600/30'
+                : 'border border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500 hover:bg-gray-800/50'
             }`}
           >
             <span className="mr-2">📦</span>
@@ -29,10 +29,10 @@ export default function Home() {
           </button>
           <button
             onClick={() => setActiveMode('scene')}
-            className={`px-6 py-2.5 rounded-lg font-medium text-sm transition-all duration-200 ${
+            className={`px-8 py-3 rounded-lg font-semibold text-base transition-all duration-200 ${
               activeMode === 'scene'
-                ? 'bg-primary/15 text-primary border-b-2 border-primary'
-                : 'text-muted hover:text-foreground hover:bg-secondary/50'
+                ? 'bg-green-600 text-white shadow-lg shadow-green-600/30'
+                : 'border border-gray-600 text-gray-400 hover:text-gray-200 hover:border-gray-500 hover:bg-gray-800/50'
             }`}
           >
             <span className="mr-2">🎨</span>
