@@ -11,7 +11,6 @@ import {
   getAdditionalTypes,
   isDashScopeModel,
   isFreeTierModel,
-  formatCostDisplay,
 } from '@/types';
 
 export default function Step4Generate() {
@@ -20,34 +19,30 @@ export default function Step4Generate() {
     images,
     setImages,
     updateImage,
-    initializeImages,
     selectedModel,
     setSelectedModel,
     enabledTypes,
-    toggleType,
-    enableAllTypes,
-    disableAllTypes,
-    enableCoreTypesOnly,
     typeSizeMap,
     setTypeSize,
   } = useApp();
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [expandedType, setExpandedType] = useState<string | null>('main');
+  const [expandedType, setExpandedType] = useState<string | null>(null);
 
-  // 计算启用的类型和图片数量
+  // 只获取启用类型的 prompts（已在 Step3 选择）
+  const enabledPrompts = useMemo(() => {
+    return prompts.filter(p => enabledTypes[p.type]);
+  }, [prompts, enabledTypes]);
+
+  // 计算启用的类型数量
   const enabledTypeCount = useMemo(() => {
-    return Object.values(enabledTypes).filter(Boolean).length;
+    return ALL_IMAGE_TYPES.filter(t => enabledTypes[t.id]).length;
   }, [enabledTypes]);
 
+  // 计算图片总数
   const totalImageCount = useMemo(() => {
-    return ALL_IMAGE_TYPES.reduce((sum, t) => {
-      if (enabledTypes[t.id]) {
-        return sum + t.count;
-      }
-      return sum;
-    }, 0);
-  }, [enabledTypes]);
+    return enabledPrompts.length;
+  }, [enabledPrompts]);
 
   // 计算预估费用
   const estimatedCost = useMemo(() => {
@@ -59,18 +54,7 @@ export default function Step4Generate() {
     return model?.pricePerImage || 0.04;
   }, [selectedModel]);
 
-  // 只获取启用类型的 prompts
-  const enabledPrompts = useMemo(() => {
-    return prompts.filter(p => enabledTypes[p.type]);
-  }, [prompts, enabledTypes]);
-
-  // 检测哪些启用的类型缺少 Prompt（需要返回 Step3 生成）
-  const missingPromptTypes = useMemo(() => {
-    const promptTypeIds = new Set(prompts.map(p => p.type));
-    return ALL_IMAGE_TYPES.filter(t => enabledTypes[t.id] && !promptTypeIds.has(t.id));
-  }, [prompts, enabledTypes]);
-
-  // 初始化 images（只为启用类型）
+  // 初始化 images
   useEffect(() => {
     if (enabledPrompts.length > 0 && images.length === 0) {
       const newImages = enabledPrompts.map(prompt => ({
@@ -84,10 +68,13 @@ export default function Step4Generate() {
     }
   }, [enabledPrompts.length, images.length, setImages, typeSizeMap]);
 
-  // 当 enabledTypes 或 typeSizeMap 变化时，更新 images 列表
+  // 同步 images 列表（当 prompts 变化时）
   useEffect(() => {
     if (prompts.length > 0) {
       const currentPromptIds = new Set(images.map(img => img.promptId));
+      const enabledPromptIds = new Set(enabledPrompts.map(p => p.id));
+
+      // 添加新的
       const newImages = enabledPrompts
         .filter(p => !currentPromptIds.has(p.id))
         .map(prompt => ({
@@ -102,11 +89,20 @@ export default function Step4Generate() {
         setImages(prev => [...prev, ...newImages]);
       }
 
-      // 移除禁用类型的 images
-      const enabledPromptIds = new Set(enabledPrompts.map(p => p.id));
+      // 移除不再启用的
       setImages(prev => prev.filter(img => enabledPromptIds.has(img.promptId)));
     }
-  }, [enabledTypes, typeSizeMap]);
+  }, [enabledPrompts, typeSizeMap]);
+
+  // 自动展开第一个有图片的类型
+  useEffect(() => {
+    if (expandedType === null && enabledPrompts.length > 0) {
+      const firstEnabledType = ALL_IMAGE_TYPES.find(t => enabledTypes[t.id]);
+      if (firstEnabledType) {
+        setExpandedType(firstEnabledType.id);
+      }
+    }
+  }, [enabledPrompts.length, enabledTypes, expandedType]);
 
   const generateSingleImage = useCallback(async (promptId: string): Promise<boolean> => {
     const prompt = prompts.find(p => p.id === promptId);
@@ -114,8 +110,6 @@ export default function Step4Generate() {
 
     const typeConfig = getTypeConfig(prompt.type);
     const aspectRatio = typeSizeMap[prompt.type] || typeConfig?.defaultSize || '1:1';
-
-    // 获取实际的 OpenRouter aspect_ratio
     const sizeOption = typeConfig?.sizeOptions.find(s => s.value === aspectRatio);
     const actualAspectRatio = sizeOption?.aspectRatio || aspectRatio;
 
@@ -151,14 +145,14 @@ export default function Step4Generate() {
   }, [prompts, selectedModel, typeSizeMap, updateImage]);
 
   const generateAllImages = async () => {
-    if (enabledTypeCount === 0) return;
+    if (enabledPrompts.length === 0) return;
 
     setIsGenerating(true);
 
     // 并发控制：DashScope 限制为 2，OpenRouter 保持 5
     const isDashScope = isDashScopeModel(selectedModel);
     const concurrency = isDashScope ? 2 : 5;
-    const delayBetweenBatches = isDashScope ? 1500 : 0; // DashScope 每批之间延迟 1.5 秒
+    const delayBetweenBatches = isDashScope ? 1500 : 0;
 
     const pendingPromptIds = enabledPrompts
       .filter(p => {
@@ -171,7 +165,6 @@ export default function Step4Generate() {
       const batch = pendingPromptIds.slice(i, i + concurrency);
       await Promise.all(batch.map(id => generateSingleImage(id)));
 
-      // DashScope 模型在每批之间添加延迟，避免触发限流
       if (isDashScope && i + concurrency < pendingPromptIds.length) {
         await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
       }
@@ -196,12 +189,11 @@ export default function Step4Generate() {
   const totalCount = enabledImages.length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-  // 按类型分组
-  const coreTypes = getCoreTypes();
-  const additionalTypes = getAdditionalTypes();
+  // 获取启用的类型配置（按核心/附加分组）
+  const enabledCoreTypes = getCoreTypes().filter(t => enabledTypes[t.id]);
+  const enabledAdditionalTypes = getAdditionalTypes().filter(t => enabledTypes[t.id]);
 
   const renderTypeSection = (typeConfig: typeof ALL_IMAGE_TYPES[0]) => {
-    const isEnabled = enabledTypes[typeConfig.id];
     const typeImages = enabledImages.filter(img => {
       const prompt = prompts.find(p => p.id === img.promptId);
       return prompt?.type === typeConfig.id;
@@ -210,37 +202,26 @@ export default function Step4Generate() {
     const currentSize = typeSizeMap[typeConfig.id] || typeConfig.defaultSize;
 
     return (
-      <div key={typeConfig.id} className={`mb-3 bg-secondary rounded-lg overflow-hidden ${!isEnabled ? 'opacity-50' : ''}`}>
+      <div key={typeConfig.id} className="mb-3 bg-secondary rounded-lg overflow-hidden">
         <div className="px-4 py-3 flex items-center gap-3">
-          {/* 勾选框 */}
-          <input
-            type="checkbox"
-            checked={isEnabled}
-            onChange={() => toggleType(typeConfig.id)}
-            className="w-4 h-4 rounded border-border text-primary focus:ring-primary"
-          />
-
-          {/* 类型名和数量 */}
+          {/* 类型名和进度 */}
           <button
-            onClick={() => isEnabled && setExpandedType(expandedType === typeConfig.id ? null : typeConfig.id)}
+            onClick={() => setExpandedType(expandedType === typeConfig.id ? null : typeConfig.id)}
             className="flex-1 flex items-center justify-between hover:bg-secondary-hover transition-colors rounded px-2 py-1"
-            disabled={!isEnabled}
           >
-            <span className={`font-medium ${isEnabled ? 'text-foreground' : 'text-muted'}`}>
+            <span className="font-medium text-foreground">
               {typeConfig.name}
               <span className="text-muted text-sm ml-2">
-                （{isEnabled ? `${completedInType}/${typeConfig.count}` : `×${typeConfig.count}`}）
+                （{completedInType}/{typeConfig.count}）
               </span>
             </span>
-            {isEnabled && (
-              <span className={`transform transition-transform ${expandedType === typeConfig.id ? 'rotate-180' : ''}`}>
-                ▼
-              </span>
-            )}
+            <span className={`transform transition-transform ${expandedType === typeConfig.id ? 'rotate-180' : ''}`}>
+              ▼
+            </span>
           </button>
 
-          {/* 尺寸选择 */}
-          {isEnabled && typeConfig.sizeOptions.length > 1 && (
+          {/* 尺寸选择（可在 Step4 微调） */}
+          {typeConfig.sizeOptions.length > 1 && (
             <select
               value={currentSize}
               onChange={(e) => setTypeSize(typeConfig.id, e.target.value)}
@@ -254,7 +235,7 @@ export default function Step4Generate() {
           )}
 
           {/* 固定尺寸显示 */}
-          {isEnabled && typeConfig.sizeOptions.length === 1 && (
+          {typeConfig.sizeOptions.length === 1 && (
             <span className="text-xs text-muted px-2 py-1 bg-background rounded">
               {typeConfig.sizeOptions[0].label}
             </span>
@@ -262,7 +243,7 @@ export default function Step4Generate() {
         </div>
 
         {/* 展开的图片网格 */}
-        {isEnabled && expandedType === typeConfig.id && (
+        {expandedType === typeConfig.id && (
           <div className="border-t border-border p-4">
             <div className="grid grid-cols-3 gap-4">
               {typeImages.map((image) => {
@@ -327,13 +308,26 @@ export default function Step4Generate() {
     );
   };
 
+  // 没有 prompts 时显示提示
+  if (prompts.length === 0) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center p-8">
+        <div className="text-6xl mb-4">📝</div>
+        <h3 className="text-lg font-bold text-foreground mb-2">还没有 Prompt</h3>
+        <p className="text-sm text-muted text-center max-w-md">
+          请先在 Step 3 选择图片类型并生成 Prompt，然后再来这里生成图片
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       {/* 步骤说明 */}
       <div className="p-4 border-b border-border bg-secondary/50">
         <h2 className="text-lg font-bold text-foreground">🎨 Step 4: 生成图片</h2>
         <p className="text-sm text-muted mt-1">
-          选择模型和每种类型的尺寸，开始生成产品图片
+          选择模型，开始生成产品图片（类型已在 Step 3 选择）
         </p>
       </div>
 
@@ -365,28 +359,6 @@ export default function Step4Generate() {
             </select>
           </div>
 
-          {/* 快捷操作 */}
-          <div className="flex gap-2">
-            <button
-              onClick={enableAllTypes}
-              className="px-2 py-1 bg-secondary text-foreground rounded text-xs hover:bg-secondary-hover"
-            >
-              全选
-            </button>
-            <button
-              onClick={disableAllTypes}
-              className="px-2 py-1 bg-secondary text-foreground rounded text-xs hover:bg-secondary-hover"
-            >
-              全不选
-            </button>
-            <button
-              onClick={enableCoreTypesOnly}
-              className="px-2 py-1 bg-secondary text-foreground rounded text-xs hover:bg-secondary-hover"
-            >
-              仅基础图
-            </button>
-          </div>
-
           <div className="flex-1"></div>
 
           {/* 统计和费用 */}
@@ -414,32 +386,18 @@ export default function Step4Generate() {
           </div>
         </div>
 
-        {/* 缺少 Prompt 的警告 */}
-        {missingPromptTypes.length > 0 && (
-          <div className="mt-3 p-3 bg-warning/10 border border-warning/30 rounded-lg">
-            <div className="text-sm text-warning">
-              ⚠️ 以下类型尚未生成 Prompt，请返回 Step 3 重新生成：
-              <span className="font-bold ml-1">
-                {missingPromptTypes.map(t => t.name).join('、')}
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* 生成按钮和进度 */}
         <div className="mt-4 flex items-center gap-4">
           <button
             onClick={generateAllImages}
-            disabled={isGenerating || enabledTypeCount === 0 || missingPromptTypes.length > 0}
+            disabled={isGenerating || enabledPrompts.length === 0}
             className="px-6 py-3 bg-primary text-background rounded-lg font-bold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {enabledTypeCount === 0
-              ? '请至少选择一个图片类型'
-              : missingPromptTypes.length > 0
-                ? '请先返回 Step3 生成缺少的 Prompt'
-                : isGenerating
-                  ? '生成中...'
-                  : `🎨 开始生成全部图片（${totalImageCount}张）`
+            {enabledPrompts.length === 0
+              ? '请先在 Step3 生成 Prompt'
+              : isGenerating
+                ? '生成中...'
+                : `🎨 开始生成全部图片（${totalImageCount}张）`
             }
           </button>
 
@@ -467,19 +425,23 @@ export default function Step4Generate() {
         </div>
       </div>
 
-      {/* 图片类型列表 */}
+      {/* 图片类型列表（只显示已启用的） */}
       <div className="flex-1 overflow-y-auto p-4">
-        {/* 核心类型 */}
-        <div className="mb-4">
-          <h3 className="text-sm font-medium text-primary mb-2">📦 基础图片类型</h3>
-          {coreTypes.map(typeConfig => renderTypeSection(typeConfig))}
-        </div>
+        {/* 基础类型 */}
+        {enabledCoreTypes.length > 0 && (
+          <div className="mb-4">
+            <h3 className="text-sm font-medium text-primary mb-2">🖼 基础图片类型</h3>
+            {enabledCoreTypes.map(typeConfig => renderTypeSection(typeConfig))}
+          </div>
+        )}
 
-        {/* 分隔线 */}
-        <div className="border-t border-border my-4 pt-4">
-          <h3 className="text-sm font-medium text-muted mb-2">📎 附加图片类型（可选）</h3>
-          {additionalTypes.map(typeConfig => renderTypeSection(typeConfig))}
-        </div>
+        {/* 附加类型 */}
+        {enabledAdditionalTypes.length > 0 && (
+          <div className="border-t border-border pt-4">
+            <h3 className="text-sm font-medium text-muted mb-2">📎 附加图片类型</h3>
+            {enabledAdditionalTypes.map(typeConfig => renderTypeSection(typeConfig))}
+          </div>
+        )}
       </div>
     </div>
   );
