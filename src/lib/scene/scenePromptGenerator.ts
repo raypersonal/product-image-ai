@@ -1,7 +1,6 @@
 /**
  * 场景 Prompt 自动生成器
- * Phase 2: 使用 Mock 数据测试 UI
- * Phase 3: 接入百炼 qwen-plus API
+ * 新结构：产品锁定描述 + 场景描述 + Negative Prompt
  */
 
 import { getTagById, getTagsEnglishDescription } from './sceneTags';
@@ -22,13 +21,44 @@ export interface ScenePromptInput {
 
 export interface ScenePromptOutput {
   prompt: string;
+  negativePrompt: string;
   tags: string[];
   model: string;
   timestamp: number;
 }
 
 /**
- * Mock 生成场景 Prompt（Phase 2 测试用）
+ * 构建最终 Prompt（产品锁定结构）
+ */
+export function buildProductLockedPrompt(
+  productName: string,
+  productDescription: string,
+  sceneDescription: string,
+  styleTags: string[]
+): string {
+  const productNamePart = productName ? `"${productName}" - ` : '';
+  const styleHints = styleTags.length > 0 ? ` Style: ${styleTags.join(', ')}.` : '';
+
+  // 如果没有详细产品描述，使用通用描述
+  const productLockPart = productDescription || 'A high-quality product with precise proportions and professional finish';
+
+  return `[PRODUCT - DO NOT MODIFY]: ${productNamePart}${productLockPart}
+Must maintain exact proportions, colors, shape, texture, and structure. No stretching, warping, squishing, or redesign allowed.
+
+[SCENE]: Place this exact product in a ${sceneDescription} setting. Professional product photography with soft natural lighting, clean composition. Change only the background, lighting angle, and props - never modify the product itself.${styleHints}
+
+8K resolution, commercial e-commerce quality, sharp focus on product.`;
+}
+
+/**
+ * 获取标准 Negative Prompt
+ */
+export function getStandardNegativePrompt(): string {
+  return 'deformed product, stretched product, wrong proportions, different product, distorted shape, modified design, warped, squished, elongated, redesigned product, incorrect colors, wrong material, blurry, low quality, amateur';
+}
+
+/**
+ * Mock 生成场景 Prompt（无参考图时使用）
  */
 export async function generateScenePromptMock(
   input: ScenePromptInput
@@ -36,50 +66,56 @@ export async function generateScenePromptMock(
   // 模拟 API 延迟
   await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500));
 
-  const { productName, productCategory, selectedTags, styleStrength, hasReferenceImages } = input;
+  const { productName, productCategory, productDescription, selectedTags, styleStrength } = input;
 
   // 获取标签的英文描述
   const tagsDescription = getTagsEnglishDescription(selectedTags);
 
-  // 根据风格强度调整措辞
-  const styleIntensity = styleStrength > 70 ? 'vibrant and bold' :
-                         styleStrength > 40 ? 'balanced and natural' :
-                         'subtle and minimalist';
+  // 分离场景和风格标签
+  const sceneTags = selectedTags.filter(id =>
+    ['birthday', 'wedding', 'valentines', 'halloween', 'christmas', 'july4th', 'easter', 'babyshower',
+     'outdoor', 'home', 'beach', 'garden', 'studio', 'white',
+     'spring', 'summer', 'autumn', 'winter'].includes(id)
+  );
+  const styleTags = selectedTags.filter(id =>
+    ['minimalist', 'luxury', 'rustic', 'modern', 'cute'].includes(id)
+  );
 
-  // 构建 Prompt
-  const productPart = productName
-    ? `A ${productCategory || 'product'} "${productName}"`
-    : 'A product';
+  const sceneDescription = tagsDescription || 'elegant studio';
 
-  const scenePart = tagsDescription
-    ? `in a ${tagsDescription} setting`
-    : 'in an elegant setting';
+  // 根据风格强度调整场景描述
+  const styleIntensityWord = styleStrength > 70 ? 'vibrant' :
+                              styleStrength > 40 ? 'balanced' :
+                              'subtle';
 
-  const stylePart = `with ${styleIntensity} styling`;
+  // 构建产品描述部分
+  const productDesc = productDescription
+    ? productDescription
+    : `A ${productCategory || 'product'}${productName ? ` called "${productName}"` : ''} with professional quality finish`;
 
-  const lightingPart = selectedTags.includes('studio')
-    ? 'professional studio lighting with soft shadows'
-    : selectedTags.includes('outdoor') || selectedTags.includes('beach')
-    ? 'natural sunlight with warm golden hour tones'
-    : 'soft ambient lighting';
+  // 使用新的产品锁定 Prompt 结构
+  const prompt = buildProductLockedPrompt(
+    productName,
+    productDesc,
+    `${styleIntensityWord} ${sceneDescription}`,
+    styleTags.map(id => getTagById(id)?.en || id)
+  );
 
-  const compositionPart = 'centered composition with shallow depth of field';
+  const negativePrompt = getStandardNegativePrompt();
 
-  const referencePart = hasReferenceImages
-    ? 'Maintain the exact product appearance, colors, and proportions from the reference image.'
-    : '';
-
-  // 组装完整 Prompt
-  const prompt = [
-    `${productPart} ${scenePart}, ${stylePart}.`,
-    `${lightingPart}, ${compositionPart}.`,
-    'High-quality product photography, 8K resolution, professional commercial style.',
-    'Clean and appealing presentation suitable for e-commerce.',
-    referencePart,
-  ].filter(Boolean).join(' ');
+  console.log('\n========== SCENE PROMPT GENERATOR (Mock) ==========');
+  console.log('Product Name:', productName);
+  console.log('Scene Tags:', sceneTags.join(', '));
+  console.log('Style Tags:', styleTags.join(', '));
+  console.log('\n---------- FINAL PROMPT ----------');
+  console.log(prompt);
+  console.log('\n---------- NEGATIVE PROMPT ----------');
+  console.log(negativePrompt);
+  console.log('============================================\n');
 
   return {
-    prompt: prompt.trim(),
+    prompt,
+    negativePrompt,
     tags: selectedTags,
     model: 'mock',
     timestamp: Date.now(),
@@ -88,7 +124,6 @@ export async function generateScenePromptMock(
 
 /**
  * 调用百炼 qwen-plus 生成场景 Prompt
- * TODO: Phase 3 实现
  */
 export async function generateScenePromptAPI(
   input: ScenePromptInput
@@ -113,7 +148,7 @@ export async function generateScenePromptAPI(
  */
 export async function generateScenePrompt(
   input: ScenePromptInput,
-  useMock = true // Phase 2 默认使用 Mock
+  useMock = true
 ): Promise<ScenePromptOutput> {
   if (useMock) {
     return generateScenePromptMock(input);

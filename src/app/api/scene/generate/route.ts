@@ -26,14 +26,46 @@ interface DashScopeTaskResponse {
  */
 async function generateWithDashScope(
   prompt: string,
+  negativePrompt: string,
   model: string,
   aspectRatio: string,
   apiKey: string
 ): Promise<string> {
   const size = convertAspectRatioToDashScope(aspectRatio);
 
-  console.log(`=== DashScope Scene Generation ===`);
-  console.log(`Model: ${model}, AspectRatio: ${aspectRatio} → Size: ${size}`);
+  console.log('\n╔════════════════════════════════════════════════════════════╗');
+  console.log('║           DASHSCOPE IMAGE GENERATION                        ║');
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log(`║ Model: ${model}`);
+  console.log(`║ Aspect Ratio: ${aspectRatio} → Size: ${size}`);
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log('║ PROMPT:');
+  console.log('║ ' + prompt.split('\n').join('\n║ '));
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log('║ NEGATIVE PROMPT:');
+  console.log('║ ' + negativePrompt);
+  console.log('╚════════════════════════════════════════════════════════════╝\n');
+
+  // 构建请求体
+  const requestBody: {
+    model: string;
+    input: { prompt: string; negative_prompt?: string };
+    parameters: { size: string; n: number };
+  } = {
+    model,
+    input: {
+      prompt,
+    },
+    parameters: {
+      size,
+      n: 1,
+    },
+  };
+
+  // DashScope 支持 negative_prompt
+  if (negativePrompt) {
+    requestBody.input.negative_prompt = negativePrompt;
+  }
 
   // Step 1: 提交异步任务
   const createResponse = await fetch(DASHSCOPE_IMAGE_URL, {
@@ -43,15 +75,12 @@ async function generateWithDashScope(
       'Authorization': `Bearer ${apiKey}`,
       'X-DashScope-Async': 'enable',
     },
-    body: JSON.stringify({
-      model,
-      input: { prompt },
-      parameters: { size, n: 1 },
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!createResponse.ok) {
     const errorData = await createResponse.json().catch(() => ({}));
+    console.error('❌ DashScope Create Task Error:', errorData);
     throw new Error(`百炼任务创建失败：${errorData.message || createResponse.statusText}`);
   }
 
@@ -62,7 +91,7 @@ async function generateWithDashScope(
     throw new Error('百炼任务ID获取失败');
   }
 
-  console.log(`Task created: ${taskId}`);
+  console.log(`>>> Task created: ${taskId}`);
 
   // Step 2: 轮询任务状态
   const maxAttempts = 60;
@@ -78,14 +107,16 @@ async function generateWithDashScope(
     const statusData: DashScopeTaskResponse = await statusResponse.json();
     const status = statusData.output?.task_status;
 
-    console.log(`Task ${taskId} status: ${status} (attempt ${i + 1})`);
+    if (i % 5 === 0) {
+      console.log(`>>> Task ${taskId} status: ${status} (attempt ${i + 1})`);
+    }
 
     if (status === 'SUCCEEDED') {
       const results = statusData.output?.results;
       if (results && results.length > 0) {
         const imageUrl = results[0].url || results[0].b64_image;
         if (imageUrl) {
-          console.log('Image generated successfully');
+          console.log('✅ Image generated successfully!');
           return imageUrl;
         }
       }
@@ -105,12 +136,23 @@ async function generateWithDashScope(
  */
 async function generateWithOpenRouter(
   prompt: string,
+  negativePrompt: string,
   model: string,
   aspectRatio: string,
   apiKey: string
 ): Promise<string> {
-  console.log(`=== OpenRouter Scene Generation ===`);
-  console.log(`Model: ${model}, AspectRatio: ${aspectRatio}`);
+  console.log('\n╔════════════════════════════════════════════════════════════╗');
+  console.log('║           OPENROUTER IMAGE GENERATION                       ║');
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log(`║ Model: ${model}`);
+  console.log(`║ Aspect Ratio: ${aspectRatio}`);
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log('║ PROMPT:');
+  console.log('║ ' + prompt.split('\n').join('\n║ '));
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log('║ NEGATIVE PROMPT:');
+  console.log('║ ' + negativePrompt);
+  console.log('╚════════════════════════════════════════════════════════════╝\n');
 
   // 根据宽高比计算尺寸
   const sizeMap: Record<string, { width: number; height: number }> = {
@@ -123,6 +165,11 @@ async function generateWithOpenRouter(
   };
 
   const size = sizeMap[aspectRatio] || sizeMap['1:1'];
+
+  // 将 negative prompt 附加到 prompt
+  const fullPrompt = negativePrompt
+    ? `${prompt}\n\nNegative: ${negativePrompt}`
+    : prompt;
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -137,13 +184,12 @@ async function generateWithOpenRouter(
       messages: [
         {
           role: 'user',
-          content: prompt,
+          content: fullPrompt,
         },
       ],
       provider: {
         sort: 'throughput',
       },
-      // FLUX 模型特定参数
       ...(model.includes('flux') && {
         extra_body: {
           width: size.width,
@@ -165,10 +211,12 @@ async function generateWithOpenRouter(
   const images = data.choices?.[0]?.message?.images;
 
   if (images && images.length > 0) {
+    console.log('✅ Image generated successfully!');
     return images[0].image_url?.url || images[0].url || images[0];
   }
 
   if (content && (content.startsWith('http') || content.startsWith('data:'))) {
+    console.log('✅ Image generated successfully!');
     return content;
   }
 
@@ -180,11 +228,13 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       prompt,
+      negativePrompt,
       model,
       aspectRatio,
       platform,
     } = body as {
       prompt: string;
+      negativePrompt?: string;
       model: string;
       aspectRatio: string;
       platform: 'dashscope' | 'openrouter';
@@ -200,9 +250,17 @@ export async function POST(request: NextRequest) {
     const selectedModel = model || 'wanx2.1-t2i-turbo';
     const selectedAspectRatio = aspectRatio || '1:1';
     const selectedPlatform = platform || (isDashScopeModel(selectedModel) ? 'dashscope' : 'openrouter');
+    const selectedNegativePrompt = negativePrompt || '';
 
-    console.log(`=== Scene Generate API ===`);
-    console.log(`Platform: ${selectedPlatform}, Model: ${selectedModel}, AspectRatio: ${selectedAspectRatio}`);
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║           SCENE GENERATE API - REQUEST                      ║');
+    console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log(`║ Platform: ${selectedPlatform}`);
+    console.log(`║ Model: ${selectedModel}`);
+    console.log(`║ Aspect Ratio: ${selectedAspectRatio}`);
+    console.log(`║ Prompt Length: ${prompt.length} chars`);
+    console.log(`║ Negative Prompt: ${selectedNegativePrompt ? 'Yes' : 'No'}`);
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
 
     let imageUrl: string;
 
@@ -214,7 +272,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      imageUrl = await generateWithDashScope(prompt, selectedModel, selectedAspectRatio, apiKey);
+      imageUrl = await generateWithDashScope(prompt, selectedNegativePrompt, selectedModel, selectedAspectRatio, apiKey);
     } else {
       const apiKey = process.env.OPENROUTER_API_KEY;
       if (!apiKey) {
@@ -223,7 +281,7 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-      imageUrl = await generateWithOpenRouter(prompt, selectedModel, selectedAspectRatio, apiKey);
+      imageUrl = await generateWithOpenRouter(prompt, selectedNegativePrompt, selectedModel, selectedAspectRatio, apiKey);
     }
 
     return NextResponse.json({
@@ -234,7 +292,7 @@ export async function POST(request: NextRequest) {
       platform: selectedPlatform,
     });
   } catch (error) {
-    console.error('Scene Generate API Error:', error);
+    console.error('\n❌ Scene Generate API Error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : '图片生成失败' },
       { status: 500 }

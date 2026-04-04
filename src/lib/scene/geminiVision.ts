@@ -18,44 +18,72 @@ export interface GeminiAnalysisInput {
 }
 
 export interface GeminiAnalysisOutput {
+  // 产品外观锁定描述（极其详细）
+  productLockDescription: string;
+  // 完整的图片生成 Prompt
   prompt: string;
+  // Negative Prompt
+  negativePrompt: string;
+  // 产品分析详情
   productAnalysis: {
     appearance: string;
     colors: string;
     material: string;
     shape: string;
+    structure: string;
+    proportions: string;
   };
   model: string;
   timestamp: number;
 }
 
 /**
- * 构建 Gemini 分析的 System Prompt
+ * 构建 Gemini 分析的 System Prompt - 要求极其详细的产品描述
  */
 export function buildGeminiSystemPrompt(): string {
-  return `You are an expert product photographer and AI image prompt engineer.
+  return `You are an expert product analyst specializing in precise visual description for AI image generation.
 
-Your task is to analyze a product image and create a detailed prompt for AI image generation that:
-1. Preserves the exact appearance of the product (shape, color, texture, material, proportions)
-2. Places the product naturally in the specified scene
-3. Uses professional photography techniques
+Your CRITICAL task is to create an EXTREMELY DETAILED "Product Lock Description" that will prevent AI from modifying, distorting, or redesigning the product.
 
-When analyzing the product, pay close attention to:
-- Exact colors and color gradients
-- Material and texture (matte, glossy, metallic, fabric, etc.)
-- Shape and proportions
-- Any text, logos, or distinctive features
-- Size relative to common objects
+When analyzing the product, you MUST describe with extreme precision:
 
-Output your response in JSON format with:
+1. SHAPE & STRUCTURE:
+   - Exact geometric shape (cylindrical, conical, rectangular, organic, etc.)
+   - Number of layers/tiers/levels if applicable
+   - How parts connect or stack
+   - Any curves, angles, or edges
+
+2. PROPORTIONS & DIMENSIONS:
+   - Height-to-width ratio (e.g., "2:1 tall", "wider than tall")
+   - Relative sizes of different parts
+   - Thickness of elements
+
+3. COLORS & PATTERNS:
+   - Exact colors using descriptive terms (sage green, coral pink, etc.)
+   - Color placement (which part is which color)
+   - Any gradients, patterns, or color transitions
+
+4. MATERIAL & TEXTURE:
+   - Surface finish (matte, glossy, textured, smooth)
+   - Material appearance (ceramic, plastic, metal, fabric)
+   - Any visible texture patterns
+
+5. DISTINCTIVE FEATURES:
+   - Unique design elements
+   - Decorative details
+   - Any text, logos, or markings
+
+Output ONLY valid JSON with this structure:
 {
+  "productLockDescription": "A single detailed paragraph (100-150 words) describing the product with extreme precision. This will be used as-is to lock the product appearance.",
   "productAnalysis": {
-    "appearance": "Brief description of overall look",
-    "colors": "Specific colors observed",
+    "appearance": "Overall look summary",
+    "colors": "All colors with their locations",
     "material": "Material and texture",
-    "shape": "Shape and proportions"
-  },
-  "prompt": "A detailed 150-200 word prompt for image generation"
+    "shape": "Geometric shape description",
+    "structure": "Layers, tiers, parts structure",
+    "proportions": "Size ratios and dimensions"
+  }
 }`;
 }
 
@@ -63,30 +91,28 @@ Output your response in JSON format with:
  * 构建用户提示
  */
 export function buildGeminiUserPrompt(input: GeminiAnalysisInput): string {
-  const { productName, productCategory, productDescription, sceneTags, styleTags, referenceWeight } = input;
+  const { productName, productCategory, productDescription } = input;
 
-  const sceneDescription = sceneTags.length > 0 ? sceneTags.join(', ') : 'elegant setting';
-  const styleDescription = styleTags.length > 0 ? styleTags.join(', ') : 'professional';
-  const preserveLevel = referenceWeight > 70 ? 'strict' : referenceWeight > 40 ? 'moderate' : 'creative';
-
-  return `Analyze this product image and create an AI image generation prompt.
+  return `Analyze this product image with EXTREME PRECISION.
 
 Product Information:
 - Name: ${productName || 'Product'}
 - Category: ${productCategory || 'General'}
 - Description: ${productDescription || 'A product'}
 
-Target Scene: ${sceneDescription}
-Style: ${styleDescription}
-Product Preservation Level: ${preserveLevel} (${referenceWeight}%)
+YOUR TASK:
+Create a "Product Lock Description" - an extremely detailed paragraph that describes this EXACT product so precisely that an AI image generator cannot modify, stretch, distort, or redesign it.
 
-Instructions:
-1. First, carefully analyze the product's visual characteristics
-2. Then create a prompt that places this exact product in the target scene
-3. ${preserveLevel === 'strict' ? 'The product must look exactly as shown - preserve all details' : preserveLevel === 'moderate' ? 'Keep the product recognizable while adapting to the scene' : 'Focus on the scene atmosphere while keeping product identity'}
-4. Include professional lighting and composition suitable for e-commerce
+Focus on:
+- Exact shape and structure (how many tiers/layers? what geometric shapes?)
+- Precise colors and where they appear
+- Material and texture
+- Proportions (height vs width ratio)
+- Any unique features
 
-Respond with valid JSON only.`;
+The description must be so specific that the product cannot be confused with anything else.
+
+Respond with valid JSON only. No markdown, no explanations.`;
 }
 
 /**
@@ -98,6 +124,11 @@ export async function analyzeWithGemini(
 ): Promise<GeminiAnalysisOutput> {
   const systemPrompt = buildGeminiSystemPrompt();
   const userPrompt = buildGeminiUserPrompt(input);
+
+  console.log('\n========== GEMINI VISION ANALYSIS ==========');
+  console.log('Product Name:', input.productName);
+  console.log('Scene Tags:', input.sceneTags.join(', '));
+  console.log('Style Tags:', input.styleTags.join(', '));
 
   const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
     method: 'POST',
@@ -124,7 +155,7 @@ export async function analyzeWithGemini(
           ],
         },
       ],
-      temperature: 0.7,
+      temperature: 0.3, // 降低温度以获得更精确的描述
       max_tokens: 2000,
     }),
   });
@@ -136,6 +167,10 @@ export async function analyzeWithGemini(
 
   const data = await response.json();
   const content = data.choices?.[0]?.message?.content;
+
+  console.log('\n---------- GEMINI RAW RESPONSE ----------');
+  console.log(content);
+  console.log('---------- END GEMINI RESPONSE ----------\n');
 
   if (!content) {
     throw new Error('Gemini returned empty response');
@@ -151,32 +186,87 @@ export async function analyzeWithGemini(
 
     const parsed = JSON.parse(cleanContent);
 
+    const productLockDescription = parsed.productLockDescription || '';
+    const sceneDescription = input.sceneTags.length > 0 ? input.sceneTags.join(', ') : 'elegant studio setting';
+
+    // 构建最终 Prompt（新结构）
+    const finalPrompt = buildFinalPrompt(
+      input.productName,
+      productLockDescription,
+      sceneDescription,
+      input.styleTags
+    );
+
+    const negativePrompt = 'deformed product, stretched product, wrong proportions, different product, distorted shape, modified design, warped, squished, elongated, redesigned product, incorrect colors, wrong material';
+
+    console.log('\n========== FINAL PROMPT FOR IMAGE MODEL ==========');
+    console.log(finalPrompt);
+    console.log('\n---------- NEGATIVE PROMPT ----------');
+    console.log(negativePrompt);
+    console.log('============================================\n');
+
     return {
-      prompt: parsed.prompt || '',
+      productLockDescription,
+      prompt: finalPrompt,
+      negativePrompt,
       productAnalysis: parsed.productAnalysis || {
         appearance: '',
         colors: '',
         material: '',
         shape: '',
+        structure: '',
+        proportions: '',
       },
       model: 'gemini-2.0-flash-exp',
       timestamp: Date.now(),
     };
   } catch {
-    // 如果 JSON 解析失败，尝试提取 prompt 部分
     console.warn('Failed to parse Gemini response as JSON, using raw content');
+
+    // 回退处理
+    const fallbackPrompt = buildFinalPrompt(
+      input.productName,
+      content,
+      input.sceneTags.join(', ') || 'studio',
+      input.styleTags
+    );
+
     return {
-      prompt: content,
+      productLockDescription: content,
+      prompt: fallbackPrompt,
+      negativePrompt: 'deformed product, stretched product, wrong proportions, different product',
       productAnalysis: {
         appearance: 'Analysis not available',
         colors: 'Unknown',
         material: 'Unknown',
         shape: 'Unknown',
+        structure: 'Unknown',
+        proportions: 'Unknown',
       },
       model: 'gemini-2.0-flash-exp',
       timestamp: Date.now(),
     };
   }
+}
+
+/**
+ * 构建最终发送给图片模型的 Prompt
+ */
+export function buildFinalPrompt(
+  productName: string,
+  productLockDescription: string,
+  sceneDescription: string,
+  styleTags: string[]
+): string {
+  const productNamePart = productName ? `"${productName}" - ` : '';
+  const styleHints = styleTags.length > 0 ? ` Style: ${styleTags.join(', ')}.` : '';
+
+  return `[PRODUCT - DO NOT MODIFY]: ${productNamePart}${productLockDescription}
+Must maintain exact proportions, colors, shape, texture, and structure. No stretching, warping, squishing, or redesign allowed.
+
+[SCENE]: Place this exact product in a ${sceneDescription} setting. Professional product photography with soft natural lighting, clean composition. Change only the background, lighting angle, and props - never modify the product itself.${styleHints}
+
+8K resolution, commercial e-commerce quality, sharp focus on product.`;
 }
 
 /**
@@ -188,15 +278,36 @@ export async function analyzeWithGeminiMock(
   // 模拟 API 延迟
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 500));
 
-  const sceneDescription = input.sceneTags.join(', ') || 'elegant setting';
+  const mockProductLock = `A three-tiered decorative display stand with a cactus-inspired design. The structure consists of three circular ceramic plates stacked vertically, each plate being flat and round with a matte finish. The bottom tier is the largest (approximately 12 inches diameter), the middle tier is medium-sized (approximately 8 inches), and the top tier is the smallest (approximately 5 inches). The plates are connected by a central vertical post designed to look like a green cactus stem with simplified arm branches. The ceramic plates appear to be in a warm terracotta or coral pink color with a subtle matte texture. The overall height-to-width ratio is approximately 1.5:1, making it taller than wide.`;
+
+  const sceneDescription = input.sceneTags.join(', ') || 'elegant studio setting';
+
+  const finalPrompt = buildFinalPrompt(
+    input.productName,
+    mockProductLock,
+    sceneDescription,
+    input.styleTags
+  );
+
+  const negativePrompt = 'deformed product, stretched product, wrong proportions, different product, distorted shape, modified design, warped';
+
+  console.log('\n========== MOCK: FINAL PROMPT FOR IMAGE MODEL ==========');
+  console.log(finalPrompt);
+  console.log('\n---------- NEGATIVE PROMPT ----------');
+  console.log(negativePrompt);
+  console.log('============================================\n');
 
   return {
-    prompt: `A ${input.productCategory || 'product'} "${input.productName || 'item'}" photographed in a ${sceneDescription} scene. The product features ${input.productDescription || 'high-quality materials'}. Professional product photography with soft natural lighting, shallow depth of field, and clean composition. The product is the clear focal point, placed on a complementary surface that enhances its appeal. 8K resolution, commercial quality suitable for e-commerce listing.`,
+    productLockDescription: mockProductLock,
+    prompt: finalPrompt,
+    negativePrompt,
     productAnalysis: {
-      appearance: 'Colorful and vibrant product with appealing design',
-      colors: 'Multiple bright colors with good contrast',
-      material: 'High-quality materials with smooth finish',
-      shape: 'Compact and well-proportioned design',
+      appearance: 'Three-tiered cactus-themed display stand',
+      colors: 'Coral pink/terracotta plates with green cactus-shaped central post',
+      material: 'Ceramic with matte finish',
+      shape: 'Three circular plates stacked vertically',
+      structure: 'Three tiers connected by central cactus-shaped post',
+      proportions: 'Height:Width ratio approximately 1.5:1, tiered sizes decreasing from bottom to top',
     },
     model: 'mock',
     timestamp: Date.now(),

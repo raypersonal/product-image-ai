@@ -31,6 +31,7 @@ export interface SceneState {
   selectedTags: string[];
   promptMode: PromptMode;
   prompt: string;
+  negativePrompt: string;
   isPromptEdited: boolean;
   // 生成配置
   platform: 'dashscope' | 'openrouter';
@@ -65,6 +66,7 @@ const initialState: SceneState = {
   selectedTags: [],
   promptMode: 'auto',
   prompt: '',
+  negativePrompt: '',
   isPromptEdited: false,
   platform: 'dashscope',
   imageModel: 'wanx2.1-t2i-turbo',
@@ -135,6 +137,7 @@ export default function SceneWorkbench() {
       ...prev,
       promptMode: mode,
       prompt: mode === 'manual' ? '' : prev.prompt,
+      negativePrompt: mode === 'manual' ? '' : prev.negativePrompt,
       isPromptEdited: false,
     }));
   }, []);
@@ -155,6 +158,9 @@ export default function SceneWorkbench() {
     try {
       // 如果有产品图，使用 Gemini 分析
       if (state.productImages.length > 0) {
+        console.log('\n>>> Generating prompt with Gemini Vision (product image detected)');
+        console.log('>>> Product Name:', state.productInfo.name || '(empty)');
+
         const response = await fetch('/api/scene/analyze', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -164,13 +170,14 @@ export default function SceneWorkbench() {
             productCategory: state.productInfo.category,
             productDescription: state.productInfo.description,
             sceneTags: state.selectedTags.filter(t =>
-              ['birthday', 'wedding', 'valentines', 'halloween', 'christmas', 'outdoor', 'home', 'beach', 'garden', 'studio', 'white'].includes(t)
+              ['birthday', 'wedding', 'valentines', 'halloween', 'christmas', 'july4th', 'easter', 'babyshower',
+               'outdoor', 'home', 'beach', 'garden', 'studio', 'white'].includes(t)
             ),
             styleTags: state.selectedTags.filter(t =>
               ['minimalist', 'luxury', 'rustic', 'modern', 'cute', 'spring', 'summer', 'autumn', 'winter'].includes(t)
             ),
             referenceWeight: state.referenceWeight,
-            useMock: true, // Phase 3: 先用 Mock 测试
+            useMock: false, // 使用真实 Gemini API
           }),
         });
 
@@ -183,11 +190,15 @@ export default function SceneWorkbench() {
         setState(prev => ({
           ...prev,
           prompt: result.prompt,
+          negativePrompt: result.negativePrompt || '',
           isPromptEdited: false,
           isGeneratingPrompt: false,
         }));
       } else {
         // 没有产品图，使用简单的 Prompt 生成
+        console.log('\n>>> Generating prompt without image (using mock generator)');
+        console.log('>>> Product Name:', state.productInfo.name || '(empty)');
+
         const result = await generateScenePrompt({
           productName: state.productInfo.name,
           productCategory: state.productInfo.category,
@@ -201,6 +212,7 @@ export default function SceneWorkbench() {
         setState(prev => ({
           ...prev,
           prompt: result.prompt,
+          negativePrompt: result.negativePrompt || '',
           isPromptEdited: false,
           isGeneratingPrompt: false,
         }));
@@ -221,6 +233,12 @@ export default function SceneWorkbench() {
 
     setState(prev => ({ ...prev, isGenerating: true, generationProgress: 0, error: null }));
 
+    console.log('\n>>> Starting image generation...');
+    console.log('>>> Prompt:', state.prompt.substring(0, 200) + '...');
+    console.log('>>> Negative Prompt:', state.negativePrompt || '(none)');
+    console.log('>>> Model:', state.imageModel);
+    console.log('>>> Platform:', state.platform);
+
     // 模拟进度
     const progressInterval = setInterval(() => {
       setState(prev => ({
@@ -235,6 +253,7 @@ export default function SceneWorkbench() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: state.prompt,
+          negativePrompt: state.negativePrompt,
           model: state.imageModel,
           aspectRatio: state.outputSize,
           platform: state.platform,
@@ -265,7 +284,7 @@ export default function SceneWorkbench() {
         isGenerating: false,
         generationProgress: 100,
         currentImage: newImage,
-        history: [newImage, ...prev.history].slice(0, 20), // 保留最近20张
+        history: [newImage, ...prev.history].slice(0, 20),
       }));
     } catch (error) {
       clearInterval(progressInterval);
@@ -277,7 +296,7 @@ export default function SceneWorkbench() {
         error: error instanceof Error ? error.message : '图片生成失败',
       }));
     }
-  }, [state.prompt, state.imageModel, state.outputSize, state.platform, state.selectedTags]);
+  }, [state.prompt, state.negativePrompt, state.imageModel, state.outputSize, state.platform, state.selectedTags]);
 
   // 重新生成
   const handleRegenerate = useCallback(() => {
@@ -296,7 +315,6 @@ export default function SceneWorkbench() {
 
   // 替换到主流程
   const handleReplaceToMainFlow = useCallback((image: GeneratedSceneImage) => {
-    // TODO: Phase 4 实现
     console.log('Replace to main flow:', image.id);
     alert('此功能将在 Phase 4 实现');
   }, []);

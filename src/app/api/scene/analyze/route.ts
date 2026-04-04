@@ -35,9 +35,20 @@ export async function POST(request: NextRequest) {
       referenceWeight: referenceWeight || 50,
     };
 
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║           SCENE ANALYZE API - REQUEST RECEIVED              ║');
+    console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log(`║ Product Name: ${productName || '(empty)'}`);
+    console.log(`║ Category: ${productCategory || '(empty)'}`);
+    console.log(`║ Scene Tags: ${sceneTags?.join(', ') || '(none)'}`);
+    console.log(`║ Style Tags: ${styleTags?.join(', ') || '(none)'}`);
+    console.log(`║ Reference Weight: ${referenceWeight}%`);
+    console.log(`║ Use Mock: ${useMock}`);
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
+
     // 使用 Mock 或真实 API
     if (useMock) {
-      console.log('=== Scene Analyze (Mock) ===');
+      console.log('>>> Using MOCK Gemini analysis...');
       const result = await analyzeWithGeminiMock(input);
       return NextResponse.json(result);
     }
@@ -51,17 +62,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('=== Scene Analyze (Gemini) ===');
-    console.log(`Product: ${productName}, Tags: ${sceneTags?.join(', ')}`);
-
+    console.log('>>> Calling REAL Gemini Vision API...');
     const result = await analyzeWithGemini(input, apiKey);
 
-    console.log('=== Gemini Analysis Complete ===');
-    console.log(`Prompt length: ${result.prompt.length} chars`);
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║           SCENE ANALYZE API - RESPONSE                      ║');
+    console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log(`║ Product Lock Description Length: ${result.productLockDescription.length} chars`);
+    console.log(`║ Final Prompt Length: ${result.prompt.length} chars`);
+    console.log(`║ Has Negative Prompt: ${!!result.negativePrompt}`);
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Scene Analyze API Error:', error);
+    console.error('\n❌ Scene Analyze API Error:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : '分析失败，请重试' },
       { status: 500 }
