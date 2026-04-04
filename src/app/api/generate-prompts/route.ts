@@ -104,13 +104,13 @@ function parseJsonWithRetry(text: string): unknown {
 
   try {
     return JSON.parse(cleaned);
-  } catch (firstError) {
+  } catch {
     console.log('First JSON parse attempt failed, trying to fix...');
 
     try {
       const fixed = tryFixJson(cleaned);
       return JSON.parse(fixed);
-    } catch (secondError) {
+    } catch {
       throw new Error(
         `JSON解析失败。原始内容前500字符: ${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`
       );

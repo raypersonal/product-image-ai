@@ -83,8 +83,7 @@ export default function Step1ProductInfo() {
   }, []);
 
   const handleInputChange = (field: string, value: string | string[]) => {
-    console.log(`[Step1] handleInputChange: ${field} = ${typeof value === 'string' ? value.substring(0, 50) : value}`);
-    setProductInfo(prev => ({ ...prev, [field]: value }));
+    setProductInfo({ ...productInfo, [field]: value });
   };
 
   const handleSellingPointChange = (index: number, value: string) => {
@@ -176,16 +175,10 @@ export default function Step1ProductInfo() {
 
   // 点击上传
   const handleUploadClick = () => {
-    console.log('[Step1] handleUploadClick called, fileInputRef:', fileInputRef.current);
-    if (fileInputRef.current) {
-      fileInputRef.current.click();
-    } else {
-      console.error('[Step1] fileInputRef is null!');
-    }
+    fileInputRef.current?.click();
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('[Step1] handleFileChange called, files:', e.target.files?.length);
     if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
       e.target.value = ''; // 清空以允许重复选择同一文件
@@ -253,11 +246,8 @@ export default function Step1ProductInfo() {
     }
   };
 
-  const descriptionLength = productInfo.description?.length || 0;
+  const descriptionLength = productInfo.description.length;
   const isDescriptionValid = descriptionLength >= 50;
-
-  // Debug log
-  console.log('[Step1] productInfo.description:', productInfo.description, 'length:', descriptionLength);
 
   return (
     <div className="h-full flex flex-col">

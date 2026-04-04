@@ -143,7 +143,7 @@ export default function Step5Download() {
       const zip = new JSZip();
 
       // 按类型创建文件夹
-      for (const { type, name, images: typeImages } of imagesByType) {
+      for (const { name, images: typeImages } of imagesByType) {
         if (typeImages.length === 0) continue;
 
         const folder = zip.folder(name);

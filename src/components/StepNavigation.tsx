@@ -1,12 +1,10 @@
 'use client';
 
 import { useApp } from '@/context/AppContext';
-import { STEPS } from '@/types';
 
 export default function StepNavigation() {
   const { currentStep, setCurrentStep, canProceedToStep } = useApp();
 
-  const currentStepInfo = STEPS.find(s => s.number === currentStep);
   const canGoBack = currentStep > 1;
   const canGoNext = currentStep < 5 && canProceedToStep(currentStep + 1);
 

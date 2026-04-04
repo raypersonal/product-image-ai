@@ -3,7 +3,7 @@
 import { useApp } from '@/context/AppContext';
 
 export default function AnalysisPanel() {
-  const { analysisResult, currentStep } = useApp();
+  const { analysisResult } = useApp();
 
   return (
     <aside className="w-[280px] h-screen bg-secondary border-l border-border flex flex-col">

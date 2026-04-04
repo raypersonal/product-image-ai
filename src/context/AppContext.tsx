@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode, SetStateAction } from 'react';
 import {
   ProductInfo,
   AnalysisResult,
@@ -10,7 +10,6 @@ import {
   ALL_IMAGE_TYPES,
   ImageTypeId,
   getTypeConfig,
-  getModelProvider,
 } from '@/types';
 
 // 初始化默认的 enabledTypes（核心类型启用，附加类型禁用）
@@ -64,7 +63,7 @@ interface AppContextType extends AppState {
   setAnalysisResult: (result: AnalysisResult | null) => void;
   setPrompts: (prompts: ImagePrompt[]) => void;
   updatePrompt: (id: string, newPrompt: string) => void;
-  setImages: (images: GeneratedImage[]) => void;
+  setImages: (images: SetStateAction<GeneratedImage[]>) => void;
   updateImage: (id: string, updates: Partial<GeneratedImage>) => void;
   setIsAnalyzing: (value: boolean) => void;
   setIsGeneratingPrompts: (value: boolean) => void;
@@ -206,7 +205,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // 计算辅助函数
   const getEnabledTypes = useCallback((): string[] => {
     return Object.entries(enabledTypes)
-      .filter(([_, enabled]) => enabled)
+      .filter(([, enabled]) => enabled)
       .map(([id]) => id);
   }, [enabledTypes]);
 
