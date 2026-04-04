@@ -39,12 +39,14 @@ export interface SceneState {
   outputSize: string;
   styleStrength: number;
   referenceWeight: number;
+  generationCount: number; // 生成数量 1-4
   // 生成状态
   isGeneratingPrompt: boolean;
   isAnalyzing: boolean;
   isGenerating: boolean;
   generationProgress: number;
   currentImage: GeneratedSceneImage | null;
+  currentBatchImages: GeneratedSceneImage[]; // 当前批次生成的图片
   history: GeneratedSceneImage[];
   // 错误
   error: string | null;
@@ -73,11 +75,13 @@ const initialState: SceneState = {
   outputSize: '1:1',
   styleStrength: 50,
   referenceWeight: 50,
+  generationCount: 1,
   isGeneratingPrompt: false,
   isAnalyzing: false,
   isGenerating: false,
   generationProgress: 0,
   currentImage: null,
+  currentBatchImages: [],
   history: [],
   error: null,
 };
@@ -250,77 +254,45 @@ export default function SceneWorkbench() {
     }
   }, []); // 使用 stateRef 避免依赖，防止闭包陈旧
 
-  // 生成图片
-  const handleGenerateImage = useCallback(async () => {
-    if (!state.prompt) return;
-
-    setState(prev => ({ ...prev, isGenerating: true, generationProgress: 0, error: null }));
-
-    // 判断是否使用图生图模式
-    const useImg2Img = state.productImages.length > 0;
-
-    console.log('\n╔════════════════════════════════════════════════════════════╗');
-    console.log('║           STARTING IMAGE GENERATION                         ║');
-    console.log('╠════════════════════════════════════════════════════════════╣');
-    console.log(`║ Mode: ${useImg2Img ? '🖼️ 图生图 (wan2.6-image)' : '📝 文生图 (text2img)'}`);
-    console.log(`║ Product Images: ${state.productImages.length}`);
-    console.log(`║ Product Name: ${state.productInfo.name || '(empty)'}`);
-    console.log('║ Prompt:', state.prompt.substring(0, 150) + '...');
-    console.log('╚════════════════════════════════════════════════════════════╝\n');
-
-    // 模拟进度
-    const progressInterval = setInterval(() => {
-      setState(prev => ({
-        ...prev,
-        generationProgress: Math.min(prev.generationProgress + Math.random() * 10, 85),
-      }));
-    }, 800);
+  // 生成单张图片
+  const generateSingleImage = async (
+    index: number,
+    currentState: SceneState
+  ): Promise<GeneratedSceneImage | null> => {
+    const useImg2Img = currentState.productImages.length > 0;
 
     try {
       let response: Response;
 
       if (useImg2Img) {
-        // 使用图生图 API - 保持产品主体，替换背景
-        console.log('>>> Using IMG2IMG API (wan2.6-image)...');
-
-        // 构建场景描述（从选中的标签生成）
-        const sceneDescription = state.selectedTags.length > 0
-          ? `将产品放置在${state.selectedTags.join('、')}场景中`
-          : '将产品放置在专业摄影场景中';
-
         response = await fetch('/api/scene/img2img', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            productImageBase64: state.productImages[0].base64,
-            scenePrompt: state.prompt,
-            negativePrompt: state.negativePrompt,
-            size: state.outputSize === '1:1' ? '1024*1024' :
-                  state.outputSize === '4:3' ? '1024*768' :
-                  state.outputSize === '3:4' ? '768*1024' :
-                  state.outputSize === '16:9' ? '1280*720' :
-                  state.outputSize === '9:16' ? '720*1280' : '1024*1024',
-            productName: state.productInfo.name,
+            productImageBase64: currentState.productImages[0].base64,
+            scenePrompt: currentState.prompt,
+            negativePrompt: currentState.negativePrompt,
+            size: currentState.outputSize === '1:1' ? '1024*1024' :
+                  currentState.outputSize === '4:3' ? '1024*768' :
+                  currentState.outputSize === '3:4' ? '768*1024' :
+                  currentState.outputSize === '16:9' ? '1280*720' :
+                  currentState.outputSize === '9:16' ? '720*1280' : '1024*1024',
+            productName: currentState.productInfo.name,
           }),
         });
       } else {
-        // 使用文生图 API
-        console.log('>>> Using TEXT2IMG API...');
-
         response = await fetch('/api/scene/generate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            prompt: state.prompt,
-            negativePrompt: state.negativePrompt,
-            model: state.imageModel,
-            aspectRatio: state.outputSize,
-            platform: state.platform,
+            prompt: currentState.prompt,
+            negativePrompt: currentState.negativePrompt,
+            model: currentState.imageModel,
+            aspectRatio: currentState.outputSize,
+            platform: currentState.platform,
           }),
         });
       }
-
-      clearInterval(progressInterval);
 
       if (!response.ok) {
         const error = await response.json();
@@ -329,36 +301,111 @@ export default function SceneWorkbench() {
 
       const result = await response.json();
 
-      const newImage: GeneratedSceneImage = {
-        id: `scene-${Date.now()}`,
+      return {
+        id: `scene-${Date.now()}-${index}`,
         imageData: result.imageUrl,
-        prompt: state.prompt,
-        model: useImg2Img ? 'wan2.6-image (img2img)' : state.imageModel,
-        tags: state.selectedTags,
+        prompt: currentState.prompt,
+        model: useImg2Img ? 'wan2.6-image (img2img)' : currentState.imageModel,
+        tags: currentState.selectedTags,
         timestamp: Date.now(),
-        size: state.outputSize,
+        size: currentState.outputSize,
       };
-
-      setState(prev => ({
-        ...prev,
-        isGenerating: false,
-        generationProgress: 100,
-        currentImage: newImage,
-        history: [newImage, ...prev.history].slice(0, 20),
-      }));
-
-      console.log('✅ Image generation completed!');
     } catch (error) {
-      clearInterval(progressInterval);
-      console.error('❌ Failed to generate image:', error);
+      console.error(`❌ Failed to generate image ${index + 1}:`, error);
+      return null;
+    }
+  };
+
+  // 生成图片（支持批量）
+  const handleGenerateImage = useCallback(async () => {
+    const currentState = stateRef.current;
+    if (!currentState.prompt) return;
+
+    const count = currentState.generationCount;
+    const useImg2Img = currentState.productImages.length > 0;
+
+    // 并发控制：百炼2并发+1.5秒间隔，OpenRouter 5并发
+    const maxConcurrent = currentState.platform === 'dashscope' ? 2 : 5;
+    const delayBetweenBatches = currentState.platform === 'dashscope' ? 1500 : 0;
+
+    console.log('\n╔════════════════════════════════════════════════════════════╗');
+    console.log('║           STARTING BATCH IMAGE GENERATION                   ║');
+    console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log(`║ Count: ${count} images`);
+    console.log(`║ Mode: ${useImg2Img ? '🖼️ 图生图' : '📝 文生图'}`);
+    console.log(`║ Concurrency: ${maxConcurrent}`);
+    console.log('╚════════════════════════════════════════════════════════════╝\n');
+
+    setState(prev => ({
+      ...prev,
+      isGenerating: true,
+      generationProgress: 0,
+      error: null,
+      currentBatchImages: [],
+      currentImage: null,
+    }));
+
+    const completedImages: GeneratedSceneImage[] = [];
+    let completedCount = 0;
+
+    // 分批处理
+    for (let i = 0; i < count; i += maxConcurrent) {
+      const batchIndices = Array.from(
+        { length: Math.min(maxConcurrent, count - i) },
+        (_, idx) => i + idx
+      );
+
+      console.log(`>>> Generating batch: ${batchIndices.map(x => x + 1).join(', ')}`);
+
+      // 并发生成当前批次
+      const batchPromises = batchIndices.map(idx =>
+        generateSingleImage(idx, currentState)
+      );
+
+      const batchResults = await Promise.all(batchPromises);
+
+      // 更新已完成的图片
+      for (const result of batchResults) {
+        if (result) {
+          completedImages.push(result);
+          completedCount++;
+
+          // 实时更新 UI
+          setState(prev => ({
+            ...prev,
+            generationProgress: Math.round((completedCount / count) * 100),
+            currentBatchImages: [...completedImages],
+            currentImage: result, // 最新一张作为当前图片
+          }));
+        }
+      }
+
+      // 如果还有下一批，等待间隔
+      if (i + maxConcurrent < count && delayBetweenBatches > 0) {
+        console.log(`>>> Waiting ${delayBetweenBatches}ms before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
+      }
+    }
+
+    // 全部完成
+    setState(prev => ({
+      ...prev,
+      isGenerating: false,
+      generationProgress: 100,
+      currentBatchImages: completedImages,
+      currentImage: completedImages[0] || null,
+      history: [...completedImages, ...prev.history].slice(0, 20),
+    }));
+
+    console.log(`✅ Batch generation completed! ${completedImages.length}/${count} images`);
+
+    if (completedImages.length < count) {
       setState(prev => ({
         ...prev,
-        isGenerating: false,
-        generationProgress: 0,
-        error: error instanceof Error ? error.message : '图片生成失败',
+        error: `部分图片生成失败 (${completedImages.length}/${count})`,
       }));
     }
-  }, [state.prompt, state.negativePrompt, state.imageModel, state.outputSize, state.platform, state.selectedTags, state.productImages, state.productInfo.name]);
+  }, []); // 使用 stateRef 避免依赖
 
   // 重新生成
   const handleRegenerate = useCallback(() => {
@@ -439,6 +486,11 @@ export default function SceneWorkbench() {
 
   const setReferenceWeight = useCallback((value: number) => {
     setState(prev => ({ ...prev, referenceWeight: value }));
+  }, []);
+
+  // 生成数量
+  const setGenerationCount = useCallback((count: number) => {
+    setState(prev => ({ ...prev, generationCount: count }));
   }, []);
 
   // 平台和模型
@@ -526,6 +578,7 @@ export default function SceneWorkbench() {
             isGenerating={state.isGenerating}
             generationProgress={state.generationProgress}
             currentImage={state.currentImage}
+            currentBatchImages={state.currentBatchImages}
             history={state.history}
             prompt={state.prompt}
             onGenerate={handleGenerateImage}
@@ -537,6 +590,8 @@ export default function SceneWorkbench() {
             platform={state.platform}
             imageModel={state.imageModel}
             hasProductImages={state.productImages.length > 0}
+            generationCount={state.generationCount}
+            onSetGenerationCount={setGenerationCount}
             isSaving={isSaving}
             saveResult={saveResult}
             saveError={saveError}

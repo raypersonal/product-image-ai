@@ -111,6 +111,7 @@ interface ScenePreviewProps {
   generationProgress: number; // 0-100
   // 当前图片
   currentImage: GeneratedSceneImage | null;
+  currentBatchImages?: GeneratedSceneImage[]; // 当前批次生成的图片
   // 历史记录
   history: GeneratedSceneImage[];
   // 提示词（用于显示）
@@ -127,6 +128,9 @@ interface ScenePreviewProps {
   imageModel: string;
   // 是否有产品图（决定使用图生图还是文生图）
   hasProductImages?: boolean;
+  // 生成数量
+  generationCount?: number;
+  onSetGenerationCount?: (count: number) => void;
   // 保存功能
   isSaving?: boolean;
   saveResult?: SaveResult | null;
@@ -139,6 +143,7 @@ export default function ScenePreview({
   isGenerating,
   generationProgress,
   currentImage,
+  currentBatchImages = [],
   history,
   prompt,
   onGenerate,
@@ -150,6 +155,8 @@ export default function ScenePreview({
   platform,
   imageModel,
   hasProductImages = false,
+  generationCount = 1,
+  onSetGenerationCount,
   isSaving = false,
   saveResult = null,
   saveError = null,
@@ -195,6 +202,29 @@ export default function ScenePreview({
 
   return (
     <div className="p-4 space-y-4">
+      {/* 生成数量选择器 */}
+      {onSetGenerationCount && (
+        <div className="flex items-center justify-center gap-3">
+          <span className="text-sm text-muted">生成数量：</span>
+          <div className="flex gap-1">
+            {[1, 2, 3, 4].map((count) => (
+              <button
+                key={count}
+                onClick={() => onSetGenerationCount(count)}
+                disabled={isGenerating}
+                className={`w-9 h-9 rounded-lg font-medium text-sm transition-all ${
+                  generationCount === count
+                    ? 'bg-green-600 text-white shadow-md'
+                    : 'bg-secondary text-foreground hover:bg-secondary-hover'
+                } disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                {count}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* 生成按钮 */}
       <button
         onClick={onGenerate}
@@ -209,7 +239,7 @@ export default function ScenePreview({
         ) : (
           <>
             <span>🎨</span>
-            生成场景图
+            生成场景图 {generationCount > 1 ? `(${generationCount}张)` : ''}
           </>
         )}
       </button>
@@ -243,35 +273,84 @@ export default function ScenePreview({
         <span>{hasProductImages ? 'wan2.6-image' : platform === 'dashscope' ? '百炼' : 'OpenRouter'}</span>
       </div>
 
-      {/* 预览区 */}
-      <div
-        className={`relative aspect-square bg-secondary rounded-xl border-2 transition-colors overflow-hidden ${
-          currentImage ? 'border-green-600/30' : 'border-border'
-        }`}
-      >
-        {currentImage ? (
-          <>
-            <img
-              src={currentImage.imageData}
-              alt="Generated scene"
-              className="w-full h-full object-contain cursor-pointer"
-              onClick={() => setPreviewingImage(currentImage)}
-            />
-            {/* 点击放大提示 */}
-            <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded text-xs text-white">
-              点击放大
+      {/* 预览区 - 支持批量图片网格显示 */}
+      {currentBatchImages.length > 1 ? (
+        // 多图网格显示
+        <div className={`grid gap-2 ${
+          currentBatchImages.length === 2 ? 'grid-cols-2' : 'grid-cols-2'
+        }`}>
+          {currentBatchImages.map((img, idx) => (
+            <div
+              key={img.id}
+              className="group relative aspect-square bg-secondary rounded-lg border-2 border-green-600/30 overflow-hidden cursor-pointer"
+              onClick={() => setPreviewingImage(img)}
+            >
+              <img
+                src={img.imageData}
+                alt={`Generated scene ${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
+              {/* 序号 */}
+              <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-black/60 rounded text-xs text-white">
+                #{idx + 1}
+              </div>
+              {/* 悬停操作 */}
+              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPreviewingImage(img);
+                  }}
+                  className="p-2 bg-white/20 hover:bg-white/30 rounded-lg text-white"
+                  title="放大"
+                >
+                  🔍
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDownload(img);
+                  }}
+                  className="p-2 bg-green-600 hover:bg-green-500 rounded-lg text-white"
+                  title="下载"
+                >
+                  📥
+                </button>
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-muted p-8">
-            <div className="text-6xl mb-4">🖼️</div>
-            <p className="text-sm text-center">生成的场景图将显示在这里</p>
-            <p className="text-xs mt-2 text-center text-muted/70">
-              选择场景标签 → 生成提示词 → 点击生成
-            </p>
-          </div>
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        // 单图显示
+        <div
+          className={`relative aspect-square bg-secondary rounded-xl border-2 transition-colors overflow-hidden ${
+            currentImage ? 'border-green-600/30' : 'border-border'
+          }`}
+        >
+          {currentImage ? (
+            <>
+              <img
+                src={currentImage.imageData}
+                alt="Generated scene"
+                className="w-full h-full object-contain cursor-pointer"
+                onClick={() => setPreviewingImage(currentImage)}
+              />
+              {/* 点击放大提示 */}
+              <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/50 rounded text-xs text-white">
+                点击放大
+              </div>
+            </>
+          ) : (
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-muted p-8">
+              <div className="text-6xl mb-4">🖼️</div>
+              <p className="text-sm text-center">生成的场景图将显示在这里</p>
+              <p className="text-xs mt-2 text-center text-muted/70">
+                选择场景标签 → 生成提示词 → 点击生成
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 当前图片的操作按钮 */}
       {currentImage && (
