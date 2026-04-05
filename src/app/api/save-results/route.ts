@@ -55,6 +55,7 @@ interface SaveRequest {
   typeSizeMap?: Record<string, string>;
   estimatedCost?: number;
   startTime?: string;
+  basePath?: string; // 用户自定义保存根目录
 }
 
 // 图片类型中文名称映射（用于文件命名）
@@ -129,7 +130,7 @@ async function downloadImage(url: string): Promise<Buffer | null> {
 export async function POST(request: NextRequest) {
   try {
     const body: SaveRequest = await request.json();
-    const { productName, model, aspectRatio, images, prompts, analysisResult, referenceImages, enabledTypes, typeSizeMap, estimatedCost, startTime } = body;
+    const { productName, model, aspectRatio, images, prompts, analysisResult, referenceImages, enabledTypes, typeSizeMap, estimatedCost, startTime, basePath } = body;
 
     if (!productName) {
       return NextResponse.json({ error: '缺少产品名称' }, { status: 400 });
@@ -139,8 +140,12 @@ export async function POST(request: NextRequest) {
     const timestamp = formatTimestamp(now);
     const folderName = `${sanitizeFilename(productName)}_${timestamp}`;
 
-    // 项目根目录下的 output 文件夹
-    const outputDir = path.join(process.cwd(), 'output', folderName);
+    // 使用用户指定的路径或默认路径
+    const baseDir = basePath && basePath.trim()
+      ? (basePath.startsWith('./') ? path.join(process.cwd(), basePath) : basePath)
+      : path.join(process.cwd(), 'output');
+
+    const outputDir = path.join(baseDir, folderName);
     const imagesDir = path.join(outputDir, 'images');
     const referencesDir = path.join(outputDir, 'references');
 

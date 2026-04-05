@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { GeneratedSceneImage } from './SceneWorkbench';
+import SavePathSelector, { getSavedPath } from '@/components/SavePathSelector';
 
 // 历史记录项组件 - 支持悬停下载和信息展示
 function HistoryItem({
@@ -135,7 +136,7 @@ interface ScenePreviewProps {
   isSaving?: boolean;
   saveResult?: SaveResult | null;
   saveError?: string | null;
-  onSaveToLocal?: () => void;
+  onSaveToLocal?: (basePath: string) => void;
   onClearSaveError?: () => void;
 }
 
@@ -448,6 +449,9 @@ export default function ScenePreview({
               <div className="text-xs text-muted mt-1">
                 成功 {saveResult.successCount}/{saveResult.totalImages} 张
               </div>
+              <div className="text-xs text-muted mt-1">
+                路径：{saveResult.outputPath}
+              </div>
             </div>
           )}
 
@@ -466,29 +470,20 @@ export default function ScenePreview({
             </div>
           )}
 
-          {/* 保存按钮 */}
+          {/* 保存按钮 - 使用SavePathSelector */}
           {!saveResult && (
-            <button
-              onClick={onSaveToLocal}
-              disabled={isSaving}
-              className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-            >
-              {isSaving ? (
-                <>
-                  <span className="animate-spin">⏳</span>
-                  保存中...
-                </>
-              ) : (
-                <>
-                  <span>💾</span>
-                  保存到本地（{history.length}张图片）
-                </>
-              )}
-            </button>
+            <div className="flex justify-center">
+              <SavePathSelector
+                onSave={onSaveToLocal}
+                isSaving={isSaving}
+                buttonText={`💾 保存到本地（${history.length}张图片）`}
+                showChangeButton={true}
+              />
+            </div>
           )}
 
           <p className="text-xs text-muted text-center mt-2">
-            保存到 output/{'{产品名}'}_{'{时间}'}_scene/ 文件夹
+            保存到 {getSavedPath()}/{'{产品名}'}_{'{时间}'}_scene/
           </p>
         </div>
       )}

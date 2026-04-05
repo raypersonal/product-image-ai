@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { ALL_IMAGE_TYPES, calculateEstimatedCost, getTypeConfig, getAspectRatioStyle, isWideAspectRatio } from '@/types';
 import JSZip from 'jszip';
+import SavePathSelector, { getSavedPath } from '@/components/SavePathSelector';
 
 interface SaveResult {
   outputPath: string;
@@ -180,7 +181,7 @@ export default function Step5Download() {
     }
   };
 
-  const saveToLocal = async () => {
+  const saveToLocal = async (basePath: string) => {
     if (completedImages.length === 0) {
       alert('没有可保存的图片');
       return;
@@ -204,6 +205,7 @@ export default function Step5Download() {
           enabledTypes,
           typeSizeMap,
           estimatedCost,
+          basePath,
         }),
       });
 
@@ -259,13 +261,12 @@ export default function Step5Download() {
             <span className="text-xs text-muted">({saveResult.successCount}/{saveResult.totalImages})</span>
           </div>
         ) : (
-          <button
-            onClick={saveToLocal}
-            disabled={isSaving || completedImages.length === 0}
-            className="px-4 py-2 bg-primary text-background rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isSaving ? '保存中...' : '💾 保存到本地'}
-          </button>
+          <SavePathSelector
+            onSave={saveToLocal}
+            isSaving={isSaving}
+            buttonText="💾 保存到本地"
+            showChangeButton={completedImages.length > 0}
+          />
         )}
 
         <button

@@ -429,7 +429,7 @@ export default function SceneWorkbench() {
   }, []);
 
   // 保存到本地
-  const handleSaveToLocal = useCallback(async () => {
+  const handleSaveToLocal = useCallback(async (basePath?: string) => {
     if (state.history.length === 0) {
       alert('没有可保存的图片');
       return;
@@ -456,6 +456,7 @@ export default function SceneWorkbench() {
             imageModel: state.imageModel,
             selectedTags: state.selectedTags,
           },
+          basePath,
         }),
       });
 

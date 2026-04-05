@@ -41,6 +41,7 @@ interface SaveSceneRequest {
   history: SceneImage[];
   productImages: ProductImage[];
   config: SceneConfig;
+  basePath?: string; // 用户自定义保存根目录
 }
 
 /**
@@ -106,7 +107,7 @@ function generateFilename(tags: string[], index: number): string {
 export async function POST(request: NextRequest) {
   try {
     const body: SaveSceneRequest = await request.json();
-    const { productName, productInfo, history, productImages, config } = body;
+    const { productName, productInfo, history, productImages, config, basePath } = body;
 
     if (history.length === 0) {
       return NextResponse.json({ error: '没有可保存的图片' }, { status: 400 });
@@ -117,12 +118,16 @@ export async function POST(request: NextRequest) {
     const safeName = productName || productInfo.name || 'unnamed_product';
     const folderName = `${sanitizeFilename(safeName)}_${timestamp}_scene`;
 
-    // 项目根目录下的 output 文件夹
-    const outputDir = path.join(process.cwd(), 'output', folderName);
+    // 使用用户指定的路径或默认路径
+    const baseDir = basePath && basePath.trim()
+      ? (basePath.startsWith('./') ? path.join(process.cwd(), basePath) : basePath)
+      : path.join(process.cwd(), 'output');
+
+    const outputDir = path.join(baseDir, folderName);
     const imagesDir = path.join(outputDir, 'images');
     const referencesDir = path.join(outputDir, 'references');
 
-    // 创建目录
+    // 创建目录（包括父目录）
     fs.mkdirSync(imagesDir, { recursive: true });
 
     // 保存产品参考图
