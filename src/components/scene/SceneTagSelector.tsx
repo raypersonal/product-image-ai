@@ -37,22 +37,22 @@ export default function SceneTagSelector({
         )}
       </div>
 
-      {/* 分类标签区 */}
+      {/* 分类标签区 - 移动端可横向滚动 */}
       <div className="space-y-3">
         {SCENE_TAG_CATEGORIES.map((category) => (
           <div key={category.id}>
             {/* 分类名称 */}
             <div className="text-xs text-muted mb-1.5">{category.name}</div>
 
-            {/* 标签按钮 */}
-            <div className="flex flex-wrap gap-1.5">
+            {/* 标签按钮 - 移动端横向滚动，桌面端换行 */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap md:overflow-x-visible scrollbar-thin scrollbar-thumb-border">
               {category.tags.map((tag: SceneTag) => {
                 const isSelected = selectedTags.includes(tag.id);
                 return (
                   <button
                     key={tag.id}
                     onClick={() => onToggleTag(tag.id)}
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
                       isSelected
                         ? 'bg-primary text-background shadow-sm shadow-primary/30'
                         : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'

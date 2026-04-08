@@ -422,12 +422,6 @@ export default function SceneWorkbench() {
     setState(prev => ({ ...prev, currentImage: image }));
   }, []);
 
-  // 替换到主流程
-  const handleReplaceToMainFlow = useCallback((image: GeneratedSceneImage) => {
-    console.log('Replace to main flow:', image.id);
-    alert('此功能将在后续版本实现');
-  }, []);
-
   // 保存到本地
   const handleSaveToLocal = useCallback(async (basePath?: string) => {
     if (state.history.length === 0) {
@@ -535,10 +529,10 @@ export default function SceneWorkbench() {
         </div>
       )}
 
-      {/* 三栏主体 */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* 左栏：产品图上传 (25%) */}
-        <div className="w-1/4 min-w-[280px] border-r border-border overflow-y-auto">
+      {/* 三栏主体 - 移动端垂直堆叠 */}
+      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        {/* 左栏：产品图上传 */}
+        <div className="w-full md:w-1/4 md:min-w-[280px] border-b md:border-b-0 md:border-r border-border overflow-y-auto max-h-[40vh] md:max-h-none">
           <SceneProductUpload
             productImages={state.productImages}
             productInfo={state.productInfo}
@@ -549,8 +543,8 @@ export default function SceneWorkbench() {
           />
         </div>
 
-        {/* 中栏：提示词编辑区 (35%) */}
-        <div className="w-[35%] min-w-[320px] border-r border-border overflow-y-auto">
+        {/* 中栏：提示词编辑区 */}
+        <div className="w-full md:w-[35%] md:min-w-[320px] border-b md:border-b-0 md:border-r border-border overflow-y-auto">
           <ScenePromptEditor
             selectedTags={state.selectedTags}
             onToggleTag={toggleTag}
@@ -573,8 +567,8 @@ export default function SceneWorkbench() {
           />
         </div>
 
-        {/* 右栏：预览 & 生成结果 (40%) */}
-        <div className="w-[40%] min-w-[400px] overflow-y-auto">
+        {/* 右栏：预览 & 生成结果 */}
+        <div className="w-full md:w-[40%] md:min-w-[400px] overflow-y-auto flex-1 pb-20 md:pb-0">
           <ScenePreview
             isGenerating={state.isGenerating}
             generationProgress={state.generationProgress}
@@ -586,7 +580,6 @@ export default function SceneWorkbench() {
             onRegenerate={handleRegenerate}
             onDownload={handleDownload}
             onSelectHistory={handleSelectHistory}
-            onReplaceToMainFlow={handleReplaceToMainFlow}
             outputSize={state.outputSize}
             platform={state.platform}
             imageModel={state.imageModel}
@@ -600,6 +593,27 @@ export default function SceneWorkbench() {
             onClearSaveError={() => setSaveError(null)}
           />
         </div>
+      </div>
+
+      {/* 移动端固定底部生成按钮 */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border z-40">
+        <button
+          onClick={handleGenerateImage}
+          disabled={state.isGenerating || !state.prompt}
+          className="w-full py-3 bg-green-600 text-white rounded-xl font-bold text-base hover:bg-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+        >
+          {state.isGenerating ? (
+            <>
+              <span className="animate-spin">⏳</span>
+              生成中... {state.generationProgress > 0 ? `${state.generationProgress}%` : ''}
+            </>
+          ) : (
+            <>
+              <span>🎨</span>
+              生成场景图 {state.generationCount > 1 ? `(${state.generationCount}张)` : ''}
+            </>
+          )}
+        </button>
       </div>
     </div>
   );

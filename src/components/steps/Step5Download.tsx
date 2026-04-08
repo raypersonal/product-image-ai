@@ -374,6 +374,13 @@ export default function Step5Download() {
                           <div className="absolute top-2 left-2 px-2 py-1 bg-black/50 rounded text-xs text-white">
                             #{prompt?.index}
                           </div>
+
+                          {/* 场景工作台来源标记 */}
+                          {image.source === 'scene-workbench' && (
+                            <div className="absolute top-2 right-2 px-2 py-1 bg-green-600 rounded text-xs text-white">
+                              场景工作台
+                            </div>
+                          )}
                         </div>
                       );
                     })}

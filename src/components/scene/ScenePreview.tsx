@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { GeneratedSceneImage } from './SceneWorkbench';
 import SavePathSelector, { getSavedPath } from '@/components/SavePathSelector';
+import ReplaceToMainFlowModal from './ReplaceToMainFlowModal';
 
 // 历史记录项组件 - 支持悬停下载和信息展示
 function HistoryItem({
@@ -122,7 +123,6 @@ interface ScenePreviewProps {
   onRegenerate: () => void;
   onDownload: (image: GeneratedSceneImage) => void;
   onSelectHistory: (image: GeneratedSceneImage) => void;
-  onReplaceToMainFlow: (image: GeneratedSceneImage) => void;
   // 配置信息
   outputSize: string;
   platform: 'dashscope' | 'openrouter';
@@ -151,7 +151,6 @@ export default function ScenePreview({
   onRegenerate,
   onDownload,
   onSelectHistory,
-  onReplaceToMainFlow,
   outputSize,
   platform,
   imageModel,
@@ -167,18 +166,42 @@ export default function ScenePreview({
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   // 预览的图片对象（用于模态框显示和下载）
   const [previewingImage, setPreviewingImage] = useState<GeneratedSceneImage | null>(null);
+  // 要替换到主流程的图片
+  const [replacingImage, setReplacingImage] = useState<GeneratedSceneImage | null>(null);
+  // 替换成功提示
+  const [replaceSuccess, setReplaceSuccess] = useState(false);
 
   // 生成模式
   const generationMode = hasProductImages ? 'img2img' : 'text2img';
 
-  // 计算费用预估
+  // 计算费用预估（基于模型和生成数量）
   const getEstimatedCost = () => {
-    if (hasProductImages) return '免费额度 (图生图)';
-    if (platform === 'dashscope') return '免费额度';
-    if (imageModel.includes('schnell')) return '$0.003';
-    if (imageModel.includes('pro')) return '$0.04';
-    return '$0.02';
+    // 图生图或百炼模型都是免费
+    if (hasProductImages || platform === 'dashscope') {
+      return { text: '免费', isFree: true };
+    }
+
+    // OpenRouter 模型定价（每张）
+    let pricePerImage = 0;
+    if (imageModel.includes('schnell')) {
+      pricePerImage = 0.014; // Klein
+    } else if (imageModel.includes('1.1-pro')) {
+      pricePerImage = 0.08; // Pro
+    } else if (imageModel.includes('pro') || imageModel.includes('flex')) {
+      pricePerImage = 0.04; // Flex
+    } else {
+      pricePerImage = 0.02; // 默认
+    }
+
+    const totalCost = pricePerImage * generationCount;
+    return {
+      text: `$${totalCost.toFixed(3)}`,
+      isFree: false,
+      perImage: pricePerImage,
+    };
   };
+
+  const estimatedCost = getEstimatedCost();
 
   // 下载图片
   const handleDownload = async (image: GeneratedSceneImage) => {
@@ -262,14 +285,16 @@ export default function ScenePreview({
         </div>
       )}
 
-      {/* 配置信息 */}
+      {/* 配置信息和费用预估 */}
       <div className="flex items-center justify-center gap-3 text-xs text-muted flex-wrap">
         <span className={`px-2 py-0.5 rounded ${hasProductImages ? 'bg-green-600/20 text-green-400' : 'bg-blue-600/20 text-blue-400'}`}>
           {hasProductImages ? '🖼️ 图生图' : '📝 文生图'}
         </span>
         <span>尺寸: {outputSize}</span>
         <span>|</span>
-        <span>费用: {getEstimatedCost()}</span>
+        <span className={estimatedCost.isFree ? 'text-green-400' : 'text-yellow-400'}>
+          预估费用: {estimatedCost.isFree ? '🆓 免费' : estimatedCost.text}
+        </span>
         <span>|</span>
         <span>{hasProductImages ? 'wan2.6-image' : platform === 'dashscope' ? '百炼' : 'OpenRouter'}</span>
       </div>
@@ -370,10 +395,23 @@ export default function ScenePreview({
             📥 下载
           </button>
           <button
-            onClick={() => onReplaceToMainFlow(currentImage)}
+            onClick={() => setReplacingImage(currentImage)}
             className="py-2.5 bg-green-600/20 text-green-500 rounded-lg text-sm font-medium hover:bg-green-600/30 transition-colors flex items-center justify-center gap-1"
           >
-            ✅ 用于主流程
+            ✅ 替换到主流程
+          </button>
+        </div>
+      )}
+
+      {/* 替换成功提示 */}
+      {replaceSuccess && (
+        <div className="p-3 bg-green-600/20 rounded-lg text-sm text-green-400 flex items-center justify-between">
+          <span>✓ 已成功替换到批量生成的图片</span>
+          <button
+            onClick={() => setReplaceSuccess(false)}
+            className="text-green-400 hover:text-green-300"
+          >
+            ✕
           </button>
         </div>
       )}
@@ -538,6 +576,15 @@ export default function ScenePreview({
             </div>
           </div>
         </div>
+      )}
+
+      {/* 替换到主流程模态框 */}
+      {replacingImage && (
+        <ReplaceToMainFlowModal
+          sceneImage={replacingImage}
+          onClose={() => setReplacingImage(null)}
+          onSuccess={() => setReplaceSuccess(true)}
+        />
       )}
     </div>
   );

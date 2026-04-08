@@ -271,6 +271,7 @@ export interface GeneratedImage {
   status: 'pending' | 'generating' | 'completed' | 'failed';
   error?: string;
   aspectRatio?: string;  // 实际使用的宽高比
+  source?: 'scene-workbench';  // 来源标记：场景工作台
 }
 
 // 产品类别选项
