@@ -6,7 +6,7 @@ import {
   EFFECT_CATEGORY_NAMES,
   getEffectsByCategory,
 } from '@/lib/video/videoPromptGenerator';
-import { VIDEO_DURATION_OPTIONS } from '@/lib/video/jimengVideo';
+import { VIDEO_DURATION_OPTIONS } from '@/lib/video/videoConstants';
 import { VIDEO_ASPECT_RATIOS } from '@/lib/videoAspectRatio';
 
 interface VideoPromptEditorProps {

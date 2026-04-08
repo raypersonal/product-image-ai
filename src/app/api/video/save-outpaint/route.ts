@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs/promises';
 import path from 'path';
+import { downloadFile } from '@/lib/proxyFetch';
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,14 +44,8 @@ export async function POST(request: NextRequest) {
 
     // 判断是 URL 还是 base64
     if (imageData.startsWith('http://') || imageData.startsWith('https://')) {
-      // 下载远程图片
-      console.log('>>> Downloading image from URL...');
-      const response = await fetch(imageData);
-      if (!response.ok) {
-        throw new Error(`下载图片失败: ${response.status}`);
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      imageBuffer = Buffer.from(arrayBuffer);
+      // 下载远程图片（支持代理）
+      imageBuffer = await downloadFile(imageData);
     } else {
       // 处��� base64 数据
       let base64Data = imageData;

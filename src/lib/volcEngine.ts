@@ -144,17 +144,16 @@ export function signRequest(config: SignatureConfig): {
   // Payload hash
   const payloadHash = sha256(config.body);
 
-  // 准备要签名的请求头
+  // 准备要签名的请求头（不包含 x-content-sha256，测试脚本证明不需要）
   const headersToSign: Record<string, string> = {
     ...config.headers,
     host: config.host,
     'x-date': amzDate,
-    'x-content-sha256': payloadHash,
   };
 
   // 签名头列表（必须包含 host 和 x-date）
   const signedHeaders = Object.keys(headersToSign)
-    .filter(h => ['host', 'content-type', 'x-date', 'x-content-sha256'].includes(h.toLowerCase()))
+    .filter(h => ['host', 'content-type', 'x-date'].includes(h.toLowerCase()))
     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 
   // 构建规范请求
@@ -191,7 +190,6 @@ export function signRequest(config: SignatureConfig): {
   return {
     headers: {
       'X-Date': amzDate,
-      'X-Content-Sha256': payloadHash,
       'Authorization': authorization,
     },
     authorization,

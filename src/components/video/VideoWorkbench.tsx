@@ -87,8 +87,6 @@ interface VideoWorkbenchProps {
 
 export default function VideoWorkbench({ transferData, onClearTransfer }: VideoWorkbenchProps) {
   const [state, setState] = useState<VideoState>(initialState);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState<string | null>(null);
 
   // 使用 ref 保存最新的 state
   const stateRef = useRef(state);
@@ -343,65 +341,10 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
     }
   }, []);
 
-  // 下载视频
-  const handleDownload = useCallback(async (video: GeneratedVideo) => {
-    try {
-      const response = await fetch(video.videoUrl);
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `video_${video.id}_${Date.now()}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error('Download failed:', error);
-      setSaveError('下载失败');
-    }
-  }, []);
-
   // 选择历史视频
   const handleSelectHistory = useCallback((video: GeneratedVideo) => {
     setState(prev => ({ ...prev, currentVideo: video }));
   }, []);
-
-  // 保存到本地
-  const handleSaveToLocal = useCallback(async (basePath: string) => {
-    if (!state.currentVideo) {
-      setSaveError('没有可保存的视频');
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    try {
-      const response = await fetch('/api/video/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          videoUrl: state.currentVideo.videoUrl,
-          productName: state.productInfo.name || 'video',
-          basePath,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || '保存失败');
-      }
-
-      console.log('✅ Video saved to:', data.filePath);
-    } catch (error) {
-      console.error('Save failed:', error);
-      setSaveError(error instanceof Error ? error.message : '保存失败');
-    } finally {
-      setIsSaving(false);
-    }
-  }, [state.currentVideo, state.productInfo.name]);
 
   return (
     <div className="h-full flex flex-col bg-background">
@@ -458,11 +401,7 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
             sourceImage={state.sourceImage}
             error={state.error}
             onGenerate={handleGenerateVideo}
-            onDownload={handleDownload}
             onSelectHistory={handleSelectHistory}
-            isSaving={isSaving}
-            saveError={saveError}
-            onSaveToLocal={handleSaveToLocal}
             onClearError={() => setState(prev => ({ ...prev, error: null }))}
           />
         </div>

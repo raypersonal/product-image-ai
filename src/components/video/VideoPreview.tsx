@@ -2,7 +2,6 @@
 
 import { useRef, useEffect } from 'react';
 import { GeneratedVideo, VideoSourceImage } from './VideoWorkbench';
-import SavePathSelector from '@/components/SavePathSelector';
 import { getCameraMotionById } from '@/lib/video/videoPromptGenerator';
 
 interface VideoPreviewProps {
@@ -14,11 +13,7 @@ interface VideoPreviewProps {
   sourceImage: VideoSourceImage | null;
   error: string | null;
   onGenerate: () => void;
-  onDownload: (video: GeneratedVideo) => void;
   onSelectHistory: (video: GeneratedVideo) => void;
-  isSaving: boolean;
-  saveError: string | null;
-  onSaveToLocal: (basePath: string) => void;
   onClearError: () => void;
 }
 
@@ -31,11 +26,7 @@ export default function VideoPreview({
   sourceImage,
   error,
   onGenerate,
-  onDownload,
   onSelectHistory,
-  isSaving,
-  saveError,
-  onSaveToLocal,
   onClearError,
 }: VideoPreviewProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -154,26 +145,19 @@ export default function VideoPreview({
 
       {/* 操作按钮 */}
       {currentVideo && (
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onDownload(currentVideo)}
-            className="py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-1"
+        <div className="space-y-2">
+          <a
+            href={currentVideo.videoUrl}
+            download={`video_${currentVideo.id}.mp4`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-1"
           >
             📥 下载视频
-          </button>
-          <SavePathSelector
-            onSave={onSaveToLocal}
-            isSaving={isSaving}
-            buttonText="💾 保存到本地"
-            showChangeButton={false}
-          />
-        </div>
-      )}
-
-      {/* 保存错误提示 */}
-      {saveError && (
-        <div className="p-2 bg-red-600/20 rounded-lg text-sm text-red-400 text-center">
-          {saveError}
+          </a>
+          <p className="text-xs text-center text-muted">
+            提示：如下载失败，请右键视频 → 另存为
+          </p>
         </div>
       )}
 

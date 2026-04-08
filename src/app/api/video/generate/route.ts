@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     console.log(`║ Prompt Length: ${prompt.length} chars`);
     console.log('╚════════════════════════════════════════════════════════════╝\n');
 
-    // 生成视频
+    // 生成视频（返回远程URL）
     const videoUrl = await generateVideo(
       accessKey,
       secretKey,
@@ -61,6 +61,9 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    console.log(`>>> Video URL: ${videoUrl}`);
+
+    // 直接返回远程URL，让浏览器通过系统代理访问
     return NextResponse.json({
       success: true,
       videoUrl,

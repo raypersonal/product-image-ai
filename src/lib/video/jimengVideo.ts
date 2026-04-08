@@ -1,37 +1,21 @@
 /**
  * 即梦AI视频生成API封装
  * 图生视频模式（3.0 1080P）
+ *
+ * 注意：此文件仅在服务端（API路由）中使用，不要在客户端组件中导入
  */
 
 import { sendSignedRequest } from '../volcEngine';
 import { ensurePureBase64 } from '../base64Utils';
+import { proxyFetch } from '../proxyFetch';
+import { JIMENG_VIDEO_MODELS, VIDEO_DURATION_OPTIONS } from './videoConstants';
+import sharp from 'sharp';
+
+// 重新导出常量（保持向后兼容）
+export { JIMENG_VIDEO_MODELS, VIDEO_DURATION_OPTIONS };
 
 // API 版本
 const API_VERSION = '2022-08-31';
-
-// 视频模型配置
-export const JIMENG_VIDEO_MODELS = {
-  // 图生视频 3.0 (1080P)
-  img2video: {
-    reqKey: 'jimeng_i2v_first_v30_1080',
-    name: '即梦AI 图生视频3.0',
-    desc: '1080P高清视频生成',
-    resolution: '1080P',
-  },
-  // 文生视频 3.0 (1080P)
-  text2video: {
-    reqKey: 'jimeng_t2v_v30_1080p',
-    name: '即梦AI 文生视频3.0',
-    desc: '1080P文字生成视频',
-    resolution: '1080P',
-  },
-};
-
-// 视频时长选项
-export const VIDEO_DURATION_OPTIONS = [
-  { value: 5, label: '5秒' },
-  { value: 10, label: '10秒' },
-];
 
 interface JimengVideoRequest {
   prompt: string;
@@ -68,6 +52,89 @@ function durationToFrames(seconds: number): number {
 }
 
 /**
+ * 检测 base64 图片格式
+ */
+function detectImageFormat(base64: string): string {
+  // 检查前几个字节来判断格式
+  if (base64.startsWith('/9j/')) return 'JPEG';
+  if (base64.startsWith('iVBORw0KGgo')) return 'PNG';
+  if (base64.startsWith('R0lGOD')) return 'GIF';
+  if (base64.startsWith('UklGR')) return 'WebP';
+  return 'Unknown';
+}
+
+/**
+ * 计算 base64 对应的实际文件大小（字节）
+ */
+function getBase64FileSize(base64: string): number {
+  // base64 编码后大小约为原始大小的 4/3
+  return Math.round(base64.length * 3 / 4);
+}
+
+// 目标尺寸配置（用于压缩）
+const TARGET_DIMENSIONS = {
+  '16:9': { width: 1280, height: 720 },
+  '9:16': { width: 720, height: 1280 },
+  '1:1': { width: 1080, height: 1080 },
+};
+
+/**
+ * 压缩图片到适合视频生成的尺寸
+ * - 最大边长 720px（更小以确保兼容性）
+ * - 输出 JPEG 格式，质量 80%
+ * - 最大文件大小 4MB
+ */
+async function compressImageForVideo(base64: string): Promise<string> {
+  const buffer = Buffer.from(base64, 'base64');
+  const image = sharp(buffer);
+  const metadata = await image.metadata();
+
+  const originalWidth = metadata.width || 0;
+  const originalHeight = metadata.height || 0;
+  const originalSizeKB = Math.round(buffer.length / 1024);
+
+  console.log(`>>> Original image: ${originalWidth}×${originalHeight}, ${originalSizeKB}KB`);
+
+  // 计算目标尺寸（保持宽高比，最大边长 720）
+  const MAX_DIMENSION = 720;
+  let targetWidth = originalWidth;
+  let targetHeight = originalHeight;
+
+  // 总是缩放到最大 720px
+  if (originalWidth > MAX_DIMENSION || originalHeight > MAX_DIMENSION) {
+    if (originalWidth > originalHeight) {
+      targetWidth = MAX_DIMENSION;
+      targetHeight = Math.round(originalHeight * (MAX_DIMENSION / originalWidth));
+    } else {
+      targetHeight = MAX_DIMENSION;
+      targetWidth = Math.round(originalWidth * (MAX_DIMENSION / originalHeight));
+    }
+  }
+
+  // 确保尺寸为偶数（视频编码要求）
+  targetWidth = Math.round(targetWidth / 2) * 2;
+  targetHeight = Math.round(targetHeight / 2) * 2;
+
+  console.log(`>>> Resizing to: ${targetWidth}×${targetHeight}`);
+
+  // 压缩图片（质量降到80%）
+  const compressedBuffer = await image
+    .resize(targetWidth, targetHeight, {
+      fit: 'inside',
+      withoutEnlargement: false,  // 允许缩小
+    })
+    .jpeg({ quality: 80 })
+    .toBuffer();
+
+  const compressedBase64 = compressedBuffer.toString('base64');
+  const compressedSizeKB = Math.round(compressedBuffer.length / 1024);
+
+  console.log(`>>> Compressed: ${targetWidth}×${targetHeight}, ${compressedSizeKB}KB (was ${originalSizeKB}KB)`);
+
+  return compressedBase64;
+}
+
+/**
  * 提交视频生成任务
  * 返回值可能包含 videoUrl（同步模式）或 taskId（异步模式）
  */
@@ -77,7 +144,39 @@ export async function submitVideoTask(
   request: JimengVideoRequest
 ): Promise<{ taskId?: string; requestId: string; videoUrl?: string }> {
   // 确保是纯 base64（支持 data URL、远程 URL、纯 base64）
-  const imageBase64 = await ensurePureBase64(request.imageBase64);
+  // 使用 proxyFetch 以支持下载字节系域名的图片
+  let imageBase64 = await ensurePureBase64(request.imageBase64, proxyFetch);
+
+  // 检测原始图片格式和大小
+  const originalFormat = detectImageFormat(imageBase64);
+  const originalSizeBytes = getBase64FileSize(imageBase64);
+  const originalSizeMB = (originalSizeBytes / (1024 * 1024)).toFixed(2);
+
+  console.log(`>>> Original image: format=${originalFormat}, size=${originalSizeMB}MB`);
+
+  // 验证图片格式（GIF不支持）
+  if (originalFormat === 'GIF') {
+    console.error(`❌ Unsupported image format: GIF`);
+    throw new Error(`不支持的图片格式: GIF。请使用 JPEG 或 PNG 格式。`);
+  }
+
+  // 压缩图片（转为JPEG，限制尺寸）
+  console.log('>>> Compressing image...');
+  imageBase64 = await compressImageForVideo(imageBase64);
+
+  // 检查压缩后的图片
+  const finalFormat = detectImageFormat(imageBase64);
+  const finalSizeBytes = getBase64FileSize(imageBase64);
+  const finalSizeMB = (finalSizeBytes / (1024 * 1024)).toFixed(2);
+
+  console.log(`>>> After compression: format=${finalFormat}, size=${finalSizeMB}MB`);
+
+  // 验证最终大小
+  const MAX_SIZE_BYTES = 4.7 * 1024 * 1024;
+  if (finalSizeBytes > MAX_SIZE_BYTES) {
+    console.error(`❌ Image too large: ${finalSizeMB}MB. Max: 4.7MB`);
+    throw new Error(`图片太大: ${finalSizeMB}MB。最大允许 4.7MB。`);
+  }
 
   // 计算帧数
   const duration = request.duration || 5;
@@ -102,7 +201,9 @@ export async function submitVideoTask(
   console.log('╠════════════════════════════════════════════════════════════╣');
   console.log(`║ req_key: ${JIMENG_VIDEO_MODELS.img2video.reqKey}`);
   console.log(`║ Duration: ${duration}s → Frames: ${frames}`);
-  console.log(`║ Image size: ${imageBase64.length} chars`);
+  console.log(`║ Image format: ${finalFormat}`);
+  console.log(`║ Image size: ${imageBase64.length} chars (${finalSizeMB}MB)`);
+  console.log(`║ Base64 prefix (first 20 chars): ${imageBase64.substring(0, 20)}...`);
   console.log(`║ Prompt (${prompt.length} chars):`, prompt.substring(0, 80) + (prompt.length > 80 ? '...' : ''));
   console.log('╚════════════════════════════════════════════════════════════╝\n');
 
