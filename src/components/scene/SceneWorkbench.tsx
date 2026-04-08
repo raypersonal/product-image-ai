@@ -254,15 +254,18 @@ export default function SceneWorkbench() {
     }
   }, []); // 使用 stateRef 避免依赖，防止闭包陈旧
 
-  // 生成单张图片
+  // 生成单张图片（返回结果或错误信息）
   const generateSingleImage = async (
     index: number,
     currentState: SceneState
-  ): Promise<GeneratedSceneImage | null> => {
+  ): Promise<{ success: true; image: GeneratedSceneImage } | { success: false; error: string }> => {
     const useImg2Img = currentState.productImages.length > 0;
 
     try {
       let response: Response;
+
+      console.log(`>>> [Image ${index + 1}] Starting generation...`);
+      console.log(`>>> Platform: ${currentState.platform}, Model: ${currentState.imageModel}`);
 
       if (useImg2Img) {
         response = await fetch('/api/scene/img2img', {
@@ -295,31 +298,41 @@ export default function SceneWorkbench() {
       }
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || '图片生成失败');
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.error || `HTTP ${response.status}`;
+        console.error(`❌ [Image ${index + 1}] API Error:`, errorMsg);
+        return { success: false, error: errorMsg };
       }
 
       const result = await response.json();
+      console.log(`✅ [Image ${index + 1}] Generated successfully`);
 
       return {
-        id: `scene-${Date.now()}-${index}`,
-        imageData: result.imageUrl,
-        prompt: currentState.prompt,
-        model: useImg2Img ? 'wan2.6-image (img2img)' : currentState.imageModel,
-        tags: currentState.selectedTags,
-        timestamp: Date.now(),
-        size: currentState.outputSize,
+        success: true,
+        image: {
+          id: `scene-${Date.now()}-${index}`,
+          imageData: result.imageUrl,
+          prompt: currentState.prompt,
+          model: useImg2Img ? 'wan2.6-image (img2img)' : currentState.imageModel,
+          tags: currentState.selectedTags,
+          timestamp: Date.now(),
+          size: currentState.outputSize,
+        },
       };
     } catch (error) {
-      console.error(`❌ Failed to generate image ${index + 1}:`, error);
-      return null;
+      const errorMsg = error instanceof Error ? error.message : '未知错误';
+      console.error(`❌ [Image ${index + 1}] Exception:`, errorMsg);
+      return { success: false, error: errorMsg };
     }
   };
 
   // 生成图片（支持批量）
   const handleGenerateImage = useCallback(async () => {
     const currentState = stateRef.current;
-    if (!currentState.prompt) return;
+    if (!currentState.prompt) {
+      console.log('>>> Generation skipped: No prompt');
+      return;
+    }
 
     const count = currentState.generationCount;
     const useImg2Img = currentState.productImages.length > 0;
@@ -333,6 +346,8 @@ export default function SceneWorkbench() {
     console.log('\n╔════════════════════════════════════════════════════════════╗');
     console.log('║           STARTING BATCH IMAGE GENERATION                   ║');
     console.log('╠════════════════════════════════════════════════════════════╣');
+    console.log(`║ Platform: ${currentState.platform}`);
+    console.log(`║ Model: ${currentState.imageModel}`);
     console.log(`║ Count: ${count} images`);
     console.log(`║ Mode: ${useImg2Img ? '🖼️ 图生图' : '📝 文生图'}`);
     console.log(`║ Concurrency: ${maxConcurrent}`);
@@ -347,64 +362,85 @@ export default function SceneWorkbench() {
       currentImage: null,
     }));
 
-    const completedImages: GeneratedSceneImage[] = [];
-    let completedCount = 0;
+    try {
+      const completedImages: GeneratedSceneImage[] = [];
+      const errors: string[] = [];
+      let processedCount = 0;
 
-    // 分批处理
-    for (let i = 0; i < count; i += maxConcurrent) {
-      const batchIndices = Array.from(
-        { length: Math.min(maxConcurrent, count - i) },
-        (_, idx) => i + idx
-      );
+      // 分批处理
+      for (let i = 0; i < count; i += maxConcurrent) {
+        const batchIndices = Array.from(
+          { length: Math.min(maxConcurrent, count - i) },
+          (_, idx) => i + idx
+        );
 
-      console.log(`>>> Generating batch: ${batchIndices.map(x => x + 1).join(', ')}`);
+        console.log(`>>> Generating batch: ${batchIndices.map(x => x + 1).join(', ')}`);
 
-      // 并发生成当前批次
-      const batchPromises = batchIndices.map(idx =>
-        generateSingleImage(idx, currentState)
-      );
+        // 并发生成当前批次
+        const batchPromises = batchIndices.map(idx =>
+          generateSingleImage(idx, currentState)
+        );
 
-      const batchResults = await Promise.all(batchPromises);
+        const batchResults = await Promise.all(batchPromises);
 
-      // 更新已完成的图片
-      for (const result of batchResults) {
-        if (result) {
-          completedImages.push(result);
-          completedCount++;
+        // 更新已完成的图片
+        for (const result of batchResults) {
+          processedCount++;
+          if (result.success) {
+            completedImages.push(result.image);
+            // 实时更新 UI
+            setState(prev => ({
+              ...prev,
+              generationProgress: Math.round((processedCount / count) * 100),
+              currentBatchImages: [...completedImages],
+              currentImage: result.image,
+            }));
+          } else {
+            errors.push(result.error);
+            // 更新进度
+            setState(prev => ({
+              ...prev,
+              generationProgress: Math.round((processedCount / count) * 100),
+            }));
+          }
+        }
 
-          // 实时更新 UI
-          setState(prev => ({
-            ...prev,
-            generationProgress: Math.round((completedCount / count) * 100),
-            currentBatchImages: [...completedImages],
-            currentImage: result, // 最新一张作为当前图片
-          }));
+        // 如果还有下一批，等待间隔
+        if (i + maxConcurrent < count && delayBetweenBatches > 0) {
+          console.log(`>>> Waiting ${delayBetweenBatches}ms before next batch...`);
+          await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
         }
       }
 
-      // 如果还有下一批，等待间隔
-      if (i + maxConcurrent < count && delayBetweenBatches > 0) {
-        console.log(`>>> Waiting ${delayBetweenBatches}ms before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
-      }
-    }
-
-    // 全部完成
-    setState(prev => ({
-      ...prev,
-      isGenerating: false,
-      generationProgress: 100,
-      currentBatchImages: completedImages,
-      currentImage: completedImages[0] || null,
-      history: [...completedImages, ...prev.history].slice(0, 20),
-    }));
-
-    console.log(`✅ Batch generation completed! ${completedImages.length}/${count} images`);
-
-    if (completedImages.length < count) {
+      // 全部完成
       setState(prev => ({
         ...prev,
-        error: `部分图片生成失败 (${completedImages.length}/${count})`,
+        isGenerating: false,
+        generationProgress: 100,
+        currentBatchImages: completedImages,
+        currentImage: completedImages[0] || prev.currentImage,
+        history: completedImages.length > 0
+          ? [...completedImages, ...prev.history].slice(0, 20)
+          : prev.history,
+      }));
+
+      console.log(`✅ Batch generation completed! ${completedImages.length}/${count} images`);
+
+      // 显示错误信息
+      if (errors.length > 0) {
+        const uniqueErrors = Array.from(new Set(errors));
+        const errorMsg = completedImages.length === 0
+          ? `生成失败: ${uniqueErrors[0]}`
+          : `部分图片生成失败 (${completedImages.length}/${count}): ${uniqueErrors[0]}`;
+        setState(prev => ({ ...prev, error: errorMsg }));
+      }
+    } catch (error) {
+      // 全局异常处理，确保 isGenerating 被重置
+      console.error('❌ Generation failed with exception:', error);
+      setState(prev => ({
+        ...prev,
+        isGenerating: false,
+        error: `生成异常: ${error instanceof Error ? error.message : '未知错误'}`,
       }));
     }
   }, []); // 使用 stateRef 避免依赖
