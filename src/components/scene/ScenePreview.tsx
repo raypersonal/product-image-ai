@@ -293,7 +293,10 @@ export default function ScenePreview({
         <span>尺寸: {outputSize}</span>
         <span>|</span>
         <span className={estimatedCost.isFree ? 'text-green-400' : 'text-yellow-400'}>
-          预估费用: {estimatedCost.isFree ? '🆓 免费' : estimatedCost.text}
+          {estimatedCost.isFree
+            ? '🆓 免费额度'
+            : `预估：${estimatedCost.text}（${generationCount}张 × $${estimatedCost.perImage?.toFixed(3)}）`
+          }
         </span>
         <span>|</span>
         <span>{hasProductImages ? 'wan2.6-image' : platform === 'dashscope' ? '百炼' : 'OpenRouter'}</span>
@@ -458,17 +461,19 @@ export default function ScenePreview({
             生成的图片会保存在这里（最多20张）
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-2">
+          /* 移动端横向滚动，桌面端4列网格 */
+          <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-x-visible scrollbar-thin scrollbar-thumb-gray-700">
             {history.slice(0, 20).map((img, index) => (
-              <HistoryItem
-                key={img.id}
-                image={img}
-                index={index}
-                isSelected={currentImage?.id === img.id}
-                onSelect={() => onSelectHistory(img)}
-                onDownload={() => handleDownload(img)}
-                onPreview={() => setPreviewingImage(img)}
-              />
+              <div key={img.id} className="flex-shrink-0 w-20 h-20 md:w-auto md:h-auto">
+                <HistoryItem
+                  image={img}
+                  index={index}
+                  isSelected={currentImage?.id === img.id}
+                  onSelect={() => onSelectHistory(img)}
+                  onDownload={() => handleDownload(img)}
+                  onPreview={() => setPreviewingImage(img)}
+                />
+              </div>
             ))}
           </div>
         )}

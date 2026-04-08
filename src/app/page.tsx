@@ -41,17 +41,29 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Content Area */}
-      <div className="flex-1 overflow-hidden">
-        {activeMode === 'batch' ? (
-          <div className="flex h-full">
-            <Sidebar />
-            <MainContent />
-            <AnalysisPanel />
-          </div>
-        ) : (
+      {/* Content Area - 使用 display 切换而非条件渲染，保留组件状态 */}
+      <div className="flex-1 overflow-hidden relative">
+        {/* 批量生成模式 */}
+        <div
+          className={`flex h-full absolute inset-0 ${
+            activeMode === 'batch' ? 'visible' : 'invisible pointer-events-none'
+          }`}
+          style={{ display: activeMode === 'batch' ? 'flex' : 'none' }}
+        >
+          <Sidebar />
+          <MainContent />
+          <AnalysisPanel />
+        </div>
+
+        {/* 场景工作台模式 */}
+        <div
+          className={`h-full absolute inset-0 ${
+            activeMode === 'scene' ? 'visible' : 'invisible pointer-events-none'
+          }`}
+          style={{ display: activeMode === 'scene' ? 'block' : 'none' }}
+        >
           <SceneWorkbench />
-        )}
+        </div>
       </div>
     </div>
   );
