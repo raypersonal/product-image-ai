@@ -6,7 +6,7 @@ import VideoPromptEditor from './VideoPromptEditor';
 import VideoModelSelector from './VideoModelSelector';
 import VideoPreview from './VideoPreview';
 import { generateVideoPrompt, getRecommendedEffects } from '@/lib/video/videoPromptGenerator';
-import { getImageAspectRatio } from '@/lib/jimengOutpaint';
+import { getImageAspectRatio } from '@/lib/videoAspectRatio';
 
 // 视频工作台状态类型
 export interface VideoSourceImage {
@@ -253,7 +253,32 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
         const outpaintResult = await outpaintResponse.json();
         finalImageBase64 = outpaintResult.imageUrl;
 
-        console.log('✅ Outpainting completed, proceeding to video generation...');
+        console.log('✅ Outpainting completed, saving to local...');
+
+        // 自动保存扩图结果到项目 output/ 目录
+        try {
+          const saveResponse = await fetch('/api/video/save-outpaint', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              imageData: finalImageBase64,
+              aspectRatio: currentState.aspectRatio,
+            }),
+          });
+
+          if (saveResponse.ok) {
+            const saveResult = await saveResponse.json();
+            console.log('✅ Outpaint image saved to:', saveResult.filePath);
+          } else {
+            const errorData = await saveResponse.json().catch(() => ({}));
+            console.warn('⚠️ Failed to save outpaint image:', errorData.error || saveResponse.status);
+          }
+        } catch (saveError) {
+          console.warn('⚠️ Failed to save outpaint image:', saveError);
+          // 保存失败不影响视频生成流程
+        }
+
+        console.log('>>> Proceeding to video generation...');
         setState(prev => ({
           ...prev,
           generationStatus: 'submitting',

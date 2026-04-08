@@ -4,6 +4,7 @@
  */
 
 import { sendSignedRequest } from './volcEngine';
+import { stripBase64Prefix } from './base64Utils';
 
 // API 版本
 const API_VERSION = '2022-08-31';
@@ -172,11 +173,8 @@ export async function jimengImg2Img(
     height = size.height;
   }
 
-  // 移除 base64 前缀（如果有）
-  let imageBase64 = request.imageBase64;
-  if (imageBase64.includes(',')) {
-    imageBase64 = imageBase64.split(',')[1];
-  }
+  // 移除 base64 前缀（使用工具函数）
+  const imageBase64 = stripBase64Prefix(request.imageBase64);
 
   const body = {
     req_key: JIMENG_MODELS.img2img.reqKey,

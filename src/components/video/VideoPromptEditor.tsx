@@ -7,7 +7,7 @@ import {
   getEffectsByCategory,
 } from '@/lib/video/videoPromptGenerator';
 import { VIDEO_DURATION_OPTIONS } from '@/lib/video/jimengVideo';
-import { VIDEO_ASPECT_RATIOS } from '@/lib/jimengOutpaint';
+import { VIDEO_ASPECT_RATIOS } from '@/lib/videoAspectRatio';
 
 interface VideoPromptEditorProps {
   cameraMotion: string;
