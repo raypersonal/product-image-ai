@@ -23,6 +23,7 @@ const OPENROUTER_MODELS = [
 ];
 
 const JIMENG_MODELS = [
+  { id: 'jimeng-4.6', name: '即梦AI 4.6', desc: '最新高美感模型（推荐）', free: true },
   { id: 'jimeng-4.0', name: '即梦AI 4.0', desc: '高美感通用模型', free: true },
   { id: 'jimeng-3.0-i2i', name: '即梦AI 3.0 图生图', desc: '智能参考', free: true },
 ];

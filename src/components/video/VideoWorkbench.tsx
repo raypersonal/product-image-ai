@@ -6,6 +6,7 @@ import VideoPromptEditor from './VideoPromptEditor';
 import VideoModelSelector from './VideoModelSelector';
 import VideoPreview from './VideoPreview';
 import { generateVideoPrompt, getRecommendedEffects } from '@/lib/video/videoPromptGenerator';
+import { getImageAspectRatio } from '@/lib/jimengOutpaint';
 
 // 视频工作台状态类型
 export interface VideoSourceImage {
@@ -36,16 +37,18 @@ export interface GeneratedVideo {
 export interface VideoState {
   // 图片来源
   sourceImage: VideoSourceImage | null;
+  sourceImageRatio: string;  // 源图宽高比
   productInfo: VideoProductInfo;
   // 视频配置
   cameraMotion: string;
   selectedEffects: string[];
   customPrompt: string;
   duration: number;
+  aspectRatio: '16:9' | '9:16' | '1:1';  // 目标视频比例
   prompt: string;
   // 生成状态
   isGenerating: boolean;
-  generationStatus: 'idle' | 'submitting' | 'processing' | 'success' | 'failed';
+  generationStatus: 'idle' | 'submitting' | 'outpainting' | 'processing' | 'success' | 'failed';
   generationProgress: number;
   currentVideo: GeneratedVideo | null;
   history: GeneratedVideo[];
@@ -55,11 +58,13 @@ export interface VideoState {
 
 const initialState: VideoState = {
   sourceImage: null,
+  sourceImageRatio: '1:1',
   productInfo: { name: '', category: '', description: '' },
   cameraMotion: 'push_in',
   selectedEffects: [],
   customPrompt: '',
   duration: 5,
+  aspectRatio: '16:9',  // 默认横屏
   prompt: '',
   isGenerating: false,
   generationStatus: 'idle',
@@ -125,9 +130,23 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
     setState(prev => ({ ...prev, prompt: newPrompt }));
   }, [state.productInfo, state.cameraMotion, state.selectedEffects, state.customPrompt, state.duration]);
 
-  // 设置图片来源
+  // 设置图片来源（同时计算宽高比）
   const setSourceImage = useCallback((image: VideoSourceImage | null) => {
-    setState(prev => ({ ...prev, sourceImage: image }));
+    if (image) {
+      // 从base64获取图片尺寸
+      const img = new Image();
+      img.onload = () => {
+        const ratio = getImageAspectRatio(img.width, img.height);
+        setState(prev => ({
+          ...prev,
+          sourceImage: image,
+          sourceImageRatio: ratio,
+        }));
+      };
+      img.src = image.base64;
+    } else {
+      setState(prev => ({ ...prev, sourceImage: null, sourceImageRatio: '1:1' }));
+    }
   }, []);
 
   // 设置产品信息
@@ -163,7 +182,12 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
     setState(prev => ({ ...prev, duration }));
   }, []);
 
-  // 生成视频
+  // 设置视频比例
+  const setAspectRatio = useCallback((aspectRatio: '16:9' | '9:16' | '1:1') => {
+    setState(prev => ({ ...prev, aspectRatio }));
+  }, []);
+
+  // 生成视频（包含自动扩图）
   const handleGenerateVideo = useCallback(async () => {
     const currentState = stateRef.current;
 
@@ -177,28 +201,79 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
       return;
     }
 
+    // 检查是否需要扩图
+    const needsOutpaint = currentState.sourceImageRatio !== currentState.aspectRatio;
+
     console.log('\n╔════════════════════════════════════════════════════════════╗');
     console.log('║           STARTING VIDEO GENERATION                         ║');
     console.log('╠════════════════════════════════════════════════════════════╣');
     console.log(`║ Duration: ${currentState.duration}s`);
     console.log(`║ Camera: ${currentState.cameraMotion}`);
     console.log(`║ Effects: ${currentState.selectedEffects.join(', ') || 'none'}`);
+    console.log(`║ Source Ratio: ${currentState.sourceImageRatio}`);
+    console.log(`║ Target Ratio: ${currentState.aspectRatio}`);
+    console.log(`║ Needs Outpaint: ${needsOutpaint}`);
     console.log('╚════════════════════════════════════════════════════════════╝\n');
 
     setState(prev => ({
       ...prev,
       isGenerating: true,
-      generationStatus: 'submitting',
+      generationStatus: needsOutpaint ? 'outpainting' : 'submitting',
       generationProgress: 0,
       error: null,
     }));
 
     try {
+      let finalImageBase64 = currentState.sourceImage.base64;
+
+      // Step 1: 如果需要扩图，先调用扩图API
+      if (needsOutpaint) {
+        console.log('>>> Step 1: Outpainting image...');
+        setState(prev => ({
+          ...prev,
+          generationStatus: 'outpainting',
+          generationProgress: 10,
+        }));
+
+        const outpaintResponse = await fetch('/api/video/outpaint', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64: currentState.sourceImage.base64,
+            targetAspectRatio: currentState.aspectRatio,
+            prompt: 'seamlessly extend the background, maintain consistent lighting and style',
+          }),
+        });
+
+        if (!outpaintResponse.ok) {
+          const errorData = await outpaintResponse.json().catch(() => ({}));
+          throw new Error(errorData.error || `扩图失败: HTTP ${outpaintResponse.status}`);
+        }
+
+        const outpaintResult = await outpaintResponse.json();
+        finalImageBase64 = outpaintResult.imageUrl;
+
+        console.log('✅ Outpainting completed, proceeding to video generation...');
+        setState(prev => ({
+          ...prev,
+          generationStatus: 'submitting',
+          generationProgress: 40,
+        }));
+      }
+
+      // Step 2: 生成视频
+      console.log('>>> Step 2: Generating video...');
+      setState(prev => ({
+        ...prev,
+        generationStatus: 'processing',
+        generationProgress: needsOutpaint ? 50 : 20,
+      }));
+
       const response = await fetch('/api/video/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          imageBase64: currentState.sourceImage.base64,
+          imageBase64: finalImageBase64,
           prompt: currentState.prompt,
           duration: currentState.duration,
         }),
@@ -214,7 +289,7 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
       const newVideo: GeneratedVideo = {
         id: `video-${Date.now()}`,
         videoUrl: result.videoUrl,
-        thumbnailUrl: currentState.sourceImage.base64,
+        thumbnailUrl: finalImageBase64,  // 使用扩图后的图片作为缩略图
         prompt: currentState.prompt,
         cameraMotion: currentState.cameraMotion,
         effects: currentState.selectedEffects,
@@ -337,10 +412,13 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
             customPrompt={state.customPrompt}
             duration={state.duration}
             prompt={state.prompt}
+            aspectRatio={state.aspectRatio}
+            sourceImageRatio={state.sourceImageRatio}
             onSetCameraMotion={setCameraMotion}
             onToggleEffect={toggleEffect}
             onSetCustomPrompt={setCustomPrompt}
             onSetDuration={setDuration}
+            onSetAspectRatio={setAspectRatio}
           />
         </div>
 

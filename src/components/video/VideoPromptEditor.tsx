@@ -7,6 +7,7 @@ import {
   getEffectsByCategory,
 } from '@/lib/video/videoPromptGenerator';
 import { VIDEO_DURATION_OPTIONS } from '@/lib/video/jimengVideo';
+import { VIDEO_ASPECT_RATIOS } from '@/lib/jimengOutpaint';
 
 interface VideoPromptEditorProps {
   cameraMotion: string;
@@ -14,10 +15,13 @@ interface VideoPromptEditorProps {
   customPrompt: string;
   duration: number;
   prompt: string;
+  aspectRatio: '16:9' | '9:16' | '1:1';
+  sourceImageRatio?: string;  // 源图宽高比，用于判断是否需要扩图
   onSetCameraMotion: (motion: string) => void;
   onToggleEffect: (effectId: string) => void;
   onSetCustomPrompt: (text: string) => void;
   onSetDuration: (duration: number) => void;
+  onSetAspectRatio: (ratio: '16:9' | '9:16' | '1:1') => void;
 }
 
 export default function VideoPromptEditor({
@@ -26,13 +30,19 @@ export default function VideoPromptEditor({
   customPrompt,
   duration,
   prompt,
+  aspectRatio,
+  sourceImageRatio,
   onSetCameraMotion,
   onToggleEffect,
   onSetCustomPrompt,
   onSetDuration,
+  onSetAspectRatio,
 }: VideoPromptEditorProps) {
   const [showPrompt, setShowPrompt] = useState(false);
   const effectsByCategory = getEffectsByCategory();
+
+  // 检查是否需要扩图
+  const needsOutpaint = sourceImageRatio && sourceImageRatio !== aspectRatio;
 
   return (
     <div className="p-4 space-y-5">
@@ -94,6 +104,39 @@ export default function VideoPromptEditor({
         </div>
       </div>
 
+      {/* 视频比例选择 */}
+      <div>
+        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
+          <span>📐</span>
+          视频比例
+        </h3>
+        <div className="flex gap-2">
+          {VIDEO_ASPECT_RATIOS.map((ratio) => (
+            <button
+              key={ratio.id}
+              onClick={() => onSetAspectRatio(ratio.id as '16:9' | '9:16' | '1:1')}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                aspectRatio === ratio.id
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'
+              }`}
+            >
+              <span className="mr-1">{ratio.icon}</span>
+              {ratio.label}
+            </button>
+          ))}
+        </div>
+        {/* 扩图提示 */}
+        {needsOutpaint && (
+          <div className="mt-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
+            <p className="text-xs text-yellow-400">
+              <span className="mr-1">⚠️</span>
+              源图比例为 {sourceImageRatio}，将自动扩展至 {aspectRatio}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* 时长选择 */}
       <div>
         <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
@@ -120,7 +163,10 @@ export default function VideoPromptEditor({
       {/* 分辨率显示 */}
       <div className="flex items-center justify-between px-3 py-2 bg-secondary/50 rounded-lg">
         <span className="text-sm text-muted">分辨率</span>
-        <span className="text-sm font-medium text-foreground">1080P (1920×1080)</span>
+        <span className="text-sm font-medium text-foreground">
+          {VIDEO_ASPECT_RATIOS.find(r => r.id === aspectRatio)?.width}×
+          {VIDEO_ASPECT_RATIOS.find(r => r.id === aspectRatio)?.height}
+        </span>
       </div>
 
       {/* 自定义文本 */}

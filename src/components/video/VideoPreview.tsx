@@ -7,7 +7,7 @@ import { getCameraMotionById } from '@/lib/video/videoPromptGenerator';
 
 interface VideoPreviewProps {
   isGenerating: boolean;
-  generationStatus: 'idle' | 'submitting' | 'processing' | 'success' | 'failed';
+  generationStatus: 'idle' | 'submitting' | 'outpainting' | 'processing' | 'success' | 'failed';
   generationProgress: number;
   currentVideo: GeneratedVideo | null;
   history: GeneratedVideo[];
@@ -50,6 +50,8 @@ export default function VideoPreview({
   // 获取状态文本
   const getStatusText = () => {
     switch (generationStatus) {
+      case 'outpainting':
+        return '正在扩展图片...';
       case 'submitting':
         return '正在提交任务...';
       case 'processing':

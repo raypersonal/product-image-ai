@@ -10,6 +10,13 @@ const API_VERSION = '2022-08-31';
 
 // 模型配置
 export const JIMENG_MODELS = {
+  // 文生图 4.6（最新版本，优先推荐）
+  text2img_v46: {
+    reqKey: 'jimeng_high_aes_general_v46',  // 如报错尝试: jimeng_t2i_v46
+    modelVersion: 'general_v4.6',
+    name: '即梦AI 4.6',
+    desc: '最新高美感模型',
+  },
   // 文生图 4.0
   text2img: {
     reqKey: 'jimeng_high_aes_general_v21_L',
@@ -43,6 +50,7 @@ interface JimengText2ImgRequest {
   aspectRatio?: string;
   width?: number;
   height?: number;
+  modelVersion?: '4.0' | '4.6';  // 模型版本，默认4.0
 }
 
 interface JimengImg2ImgRequest {
@@ -64,7 +72,7 @@ interface JimengResponse {
 }
 
 /**
- * 文生图（即梦AI 4.0）
+ * 文生图（即梦AI 4.0 / 4.6）
  */
 export async function jimengText2Img(
   accessKey: string,
@@ -81,19 +89,26 @@ export async function jimengText2Img(
     height = size.height;
   }
 
+  // 选择模型配置
+  const modelConfig = request.modelVersion === '4.6'
+    ? JIMENG_MODELS.text2img_v46
+    : JIMENG_MODELS.text2img;
+
   const body = {
-    req_key: JIMENG_MODELS.text2img.reqKey,
+    req_key: modelConfig.reqKey,
     prompt: request.prompt,
-    model_version: JIMENG_MODELS.text2img.modelVersion,
+    model_version: modelConfig.modelVersion,
     return_url: true,
     width,
     height,
     ...(request.negativePrompt && { negative_prompt: request.negativePrompt }),
   };
 
+  const modelName = request.modelVersion === '4.6' ? '4.6' : '4.0';
   console.log('\n╔════════════════════════════════════════════════════════════╗');
-  console.log('║           JIMENG AI 4.0 - TEXT TO IMAGE                     ║');
+  console.log(`║           JIMENG AI ${modelName} - TEXT TO IMAGE                     ║`);
   console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log(`║ Model: ${modelConfig.reqKey}`);
   console.log(`║ Size: ${width}×${height}`);
   console.log('║ Prompt:', request.prompt.substring(0, 100) + (request.prompt.length > 100 ? '...' : ''));
   console.log('╚════════════════════════════════════════════════════════════╝\n');

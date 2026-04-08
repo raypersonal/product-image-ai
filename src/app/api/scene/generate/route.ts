@@ -235,11 +235,15 @@ async function generateWithJimeng(
   accessKey: string,
   secretKey: string
 ): Promise<string> {
+  // 根据模型ID判断版本
+  const modelVersion: '4.0' | '4.6' = model === 'jimeng-4.6' ? '4.6' : '4.0';
+
   // 即梦AI文生图
   const result = await jimengText2Img(accessKey, secretKey, {
     prompt,
     negativePrompt,
     aspectRatio,
+    modelVersion,
   });
 
   return result.imageUrl;
