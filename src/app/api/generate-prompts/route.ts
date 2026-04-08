@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ProductInfo, AnalysisResult, ImageTypeId, ImagePrompt, isDashScopeModel, ALL_IMAGE_TYPES } from '@/types';
+import { getBatchGenerationKnowledge } from '@/lib/designKnowledgeSelector';
 
 // DashScope API 基础配置
 const DASHSCOPE_BASE_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
@@ -14,10 +15,26 @@ interface EnabledTypeConfig {
   promptHint: string;
 }
 
-function buildSystemPrompt(enabledTypes: EnabledTypeConfig[]): string {
+function buildSystemPrompt(enabledTypes: EnabledTypeConfig[], productCategory?: string): string {
   const typeInstructions = enabledTypes.map(t =>
     `- ${t.name} (${t.id}): ${t.count} prompts. Style hint: ${t.promptHint}`
   ).join('\n');
+
+  // 收集所有启用类型对应的设计知识
+  const knowledgeSections: string[] = [];
+  const seenKnowledge = new Set<string>(); // 避免重复
+
+  enabledTypes.forEach(t => {
+    const knowledge = getBatchGenerationKnowledge(t.id as ImageTypeId, productCategory);
+    if (knowledge && !seenKnowledge.has(knowledge)) {
+      seenKnowledge.add(knowledge);
+      knowledgeSections.push(`=== ${t.name.toUpperCase()} PHOTOGRAPHY KNOWLEDGE ===\n${knowledge}`);
+    }
+  });
+
+  const designKnowledge = knowledgeSections.length > 0
+    ? `\n\nDESIGN KNOWLEDGE BASE (Apply these rules to your prompts):\n${knowledgeSections.join('\n\n')}`
+    : '';
 
   return `You are an expert Amazon product photographer and AI image prompt engineer.
 
@@ -35,11 +52,12 @@ IMPORTANT RULES:
    - Style and mood
    - Camera angle
    - Props and accessories (if applicable)
+${designKnowledge}
 
 IMAGE TYPES TO GENERATE:
 ${typeInstructions}
 
-For each type, follow the style hint to create appropriate prompts.
+For each type, follow the style hint AND the corresponding design knowledge rules above to create appropriate prompts.
 
 CRITICAL OUTPUT FORMAT:
 - You MUST respond with ONLY a valid JSON object
@@ -182,7 +200,7 @@ export async function POST(request: NextRequest) {
     console.log(`Will generate prompts for ${typesToGenerate.length} types:`);
     typesToGenerate.forEach(t => console.log(`  - ${t.name} (${t.id}): ${t.count} prompts`));
 
-    const systemPrompt = buildSystemPrompt(typesToGenerate);
+    const systemPrompt = buildSystemPrompt(typesToGenerate, productInfo.category);
 
     // 构建参考图片分析部分
     let referenceSection = '';

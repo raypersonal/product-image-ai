@@ -34,7 +34,7 @@ export interface SceneState {
   negativePrompt: string;
   isPromptEdited: boolean;
   // 生成配置
-  platform: 'dashscope' | 'openrouter';
+  platform: 'dashscope' | 'openrouter' | 'jimeng';
   imageModel: string;
   outputSize: string;
   styleStrength: number;
@@ -324,9 +324,11 @@ export default function SceneWorkbench() {
     const count = currentState.generationCount;
     const useImg2Img = currentState.productImages.length > 0;
 
-    // 并发控制：百炼2并发+1.5秒间隔，OpenRouter 5并发
-    const maxConcurrent = currentState.platform === 'dashscope' ? 2 : 5;
-    const delayBetweenBatches = currentState.platform === 'dashscope' ? 1500 : 0;
+    // 并发控制：即梦1并发+2秒间隔，百炼2并发+1.5秒间隔，OpenRouter 5并发
+    const maxConcurrent = currentState.platform === 'jimeng' ? 1 :
+                          currentState.platform === 'dashscope' ? 2 : 5;
+    const delayBetweenBatches = currentState.platform === 'jimeng' ? 2000 :
+                                currentState.platform === 'dashscope' ? 1500 : 0;
 
     console.log('\n╔════════════════════════════════════════════════════════════╗');
     console.log('║           STARTING BATCH IMAGE GENERATION                   ║');
@@ -489,7 +491,7 @@ export default function SceneWorkbench() {
   }, []);
 
   // 平台和模型
-  const setPlatform = useCallback((platform: 'dashscope' | 'openrouter') => {
+  const setPlatform = useCallback((platform: 'dashscope' | 'openrouter' | 'jimeng') => {
     setState(prev => ({ ...prev, platform }));
   }, []);
 

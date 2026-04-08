@@ -1,9 +1,11 @@
 /**
  * 场景 Prompt 自动生成器
  * 新结构：产品锁定描述 + 场景描述 + Negative Prompt
+ * 设计知识注入：场景图规范 + 构图 + 色彩知识
  */
 
 import { getTagById, getTagsEnglishDescription } from './sceneTags';
+import { getColorGuideForOccasion } from '../designKnowledgeSelector';
 
 export interface ScenePromptInput {
   // 产品信息
@@ -29,12 +31,14 @@ export interface ScenePromptOutput {
 
 /**
  * 构建最终 Prompt（产品锁定结构）
+ * @param knowledgeHints 设计知识提示（可选）
  */
 export function buildProductLockedPrompt(
   productName: string,
   productDescription: string,
   sceneDescription: string,
-  styleTags: string[]
+  styleTags: string[],
+  knowledgeHints?: string
 ): string {
   const productNamePart = productName ? `"${productName}" - ` : '';
   const styleHints = styleTags.length > 0 ? ` Style: ${styleTags.join(', ')}.` : '';
@@ -42,10 +46,13 @@ export function buildProductLockedPrompt(
   // 如果没有详细产品描述，使用通用描述
   const productLockPart = productDescription || 'A high-quality product with precise proportions and professional finish';
 
+  // 设计知识提示（精简版，避免 prompt 过长）
+  const designGuidance = knowledgeHints ? `\n\n[PHOTOGRAPHY GUIDANCE]: ${knowledgeHints}` : '';
+
   return `[PRODUCT - DO NOT MODIFY]: ${productNamePart}${productLockPart}
 Must maintain exact proportions, colors, shape, texture, and structure. No stretching, warping, squishing, or redesign allowed.
 
-[SCENE]: Place this exact product in a ${sceneDescription} setting. Professional product photography with soft natural lighting, clean composition. Change only the background, lighting angle, and props - never modify the product itself.${styleHints}
+[SCENE]: Place this exact product in a ${sceneDescription} setting. Professional product photography with soft natural lighting, clean composition. Change only the background, lighting angle, and props - never modify the product itself.${styleHints}${designGuidance}
 
 8K resolution, commercial e-commerce quality, sharp focus on product.`;
 }
@@ -55,6 +62,46 @@ Must maintain exact proportions, colors, shape, texture, and structure. No stret
  */
 export function getStandardNegativePrompt(): string {
   return 'deformed product, stretched product, wrong proportions, different product, distorted shape, modified design, warped, squished, elongated, redesigned product, incorrect colors, wrong material, blurry, low quality, amateur';
+}
+
+/**
+ * 从设计知识中提取精简的关键提示
+ * 避免 Prompt 过长
+ */
+function extractKnowledgeHints(
+  productCategory: string,
+  selectedTags: string[]
+): string {
+  const hints: string[] = [];
+
+  // 1. 获取色彩指南（根据节日/场合标签）
+  for (const tag of selectedTags) {
+    const colorGuide = getColorGuideForOccasion(tag);
+    if (colorGuide) {
+      hints.push(colorGuide);
+      break; // 只取一个
+    }
+  }
+
+  // 2. 根据产品类别添加关键拍摄提示
+  const lowerCategory = productCategory.toLowerCase();
+  if (lowerCategory.includes('banner') || lowerCategory.includes('bunting')) {
+    hints.push('Show banner hanging at realistic height, full text readable');
+  } else if (lowerCategory.includes('balloon')) {
+    hints.push('Show inflated balloons with correct proportions, include size reference');
+  } else if (lowerCategory.includes('tableware') || lowerCategory.includes('plate')) {
+    hints.push('Show complete place setting on decorated table');
+  } else if (lowerCategory.includes('cake') || lowerCategory.includes('topper')) {
+    hints.push('Show on actual cake/table with scale reference');
+  } else if (lowerCategory.includes('backdrop')) {
+    hints.push('Show full setup with person for scale reference');
+  }
+
+  // 3. 通用场景图提示
+  hints.push('Rule of thirds composition, foreground-midground-background layering');
+  hints.push('Product in sharp focus, background with natural bokeh');
+
+  return hints.slice(0, 3).join('. '); // 最多3条提示
 }
 
 /**
@@ -93,20 +140,26 @@ export async function generateScenePromptMock(
     ? productDescription
     : `A ${productCategory || 'product'}${productName ? ` called "${productName}"` : ''} with professional quality finish`;
 
-  // 使用新的产品锁定 Prompt 结构
+  // 获取设计知识提示（精简版）
+  const knowledgeHints = extractKnowledgeHints(productCategory || '', selectedTags);
+
+  // 使用新的产品锁定 Prompt 结构（注入设计知识）
   const prompt = buildProductLockedPrompt(
     productName,
     productDesc,
     `${styleIntensityWord} ${sceneDescription}`,
-    styleTags.map(id => getTagById(id)?.en || id)
+    styleTags.map(id => getTagById(id)?.en || id),
+    knowledgeHints
   );
 
   const negativePrompt = getStandardNegativePrompt();
 
   console.log('\n========== SCENE PROMPT GENERATOR (Mock) ==========');
   console.log('Product Name:', productName);
+  console.log('Product Category:', productCategory);
   console.log('Scene Tags:', sceneTags.join(', '));
   console.log('Style Tags:', styleTags.join(', '));
+  console.log('Knowledge Hints:', knowledgeHints);
   console.log('\n---------- FINAL PROMPT ----------');
   console.log(prompt);
   console.log('\n---------- NEGATIVE PROMPT ----------');

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isDashScopeModel, convertAspectRatioToDashScope } from '@/types';
+import { jimengText2Img } from '@/lib/jimengApi';
 
 export const maxDuration = 120;
 
@@ -223,6 +224,27 @@ async function generateWithOpenRouter(
   throw new Error('无法从 OpenRouter 响应中提取图片');
 }
 
+/**
+ * 使用即梦AI生成图片
+ */
+async function generateWithJimeng(
+  prompt: string,
+  negativePrompt: string,
+  model: string,
+  aspectRatio: string,
+  accessKey: string,
+  secretKey: string
+): Promise<string> {
+  // 即梦AI文生图
+  const result = await jimengText2Img(accessKey, secretKey, {
+    prompt,
+    negativePrompt,
+    aspectRatio,
+  });
+
+  return result.imageUrl;
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -237,7 +259,7 @@ export async function POST(request: NextRequest) {
       negativePrompt?: string;
       model: string;
       aspectRatio: string;
-      platform: 'dashscope' | 'openrouter';
+      platform: 'dashscope' | 'openrouter' | 'jimeng';
     };
 
     if (!prompt) {
@@ -249,7 +271,17 @@ export async function POST(request: NextRequest) {
 
     const selectedModel = model || 'wanx2.1-t2i-turbo';
     const selectedAspectRatio = aspectRatio || '1:1';
-    const selectedPlatform = platform || (isDashScopeModel(selectedModel) ? 'dashscope' : 'openrouter');
+    // 根据模型判断平台（支持新增的即梦）
+    let selectedPlatform = platform;
+    if (!selectedPlatform) {
+      if (selectedModel.startsWith('jimeng')) {
+        selectedPlatform = 'jimeng';
+      } else if (isDashScopeModel(selectedModel)) {
+        selectedPlatform = 'dashscope';
+      } else {
+        selectedPlatform = 'openrouter';
+      }
+    }
     const selectedNegativePrompt = negativePrompt || '';
 
     console.log('\n╔════════════════════════════════════════════════════════════╗');
@@ -264,7 +296,18 @@ export async function POST(request: NextRequest) {
 
     let imageUrl: string;
 
-    if (selectedPlatform === 'dashscope') {
+    if (selectedPlatform === 'jimeng') {
+      // 即梦AI
+      const accessKey = process.env.VOLC_ACCESS_KEY;
+      const secretKey = process.env.VOLC_SECRET_KEY;
+      if (!accessKey || !secretKey) {
+        return NextResponse.json(
+          { error: '请配置 VOLC_ACCESS_KEY 和 VOLC_SECRET_KEY' },
+          { status: 400 }
+        );
+      }
+      imageUrl = await generateWithJimeng(prompt, selectedNegativePrompt, selectedModel, selectedAspectRatio, accessKey, secretKey);
+    } else if (selectedPlatform === 'dashscope') {
       const apiKey = process.env.DASHSCOPE_API_KEY;
       if (!apiKey) {
         return NextResponse.json(

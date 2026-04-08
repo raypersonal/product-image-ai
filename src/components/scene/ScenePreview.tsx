@@ -125,7 +125,7 @@ interface ScenePreviewProps {
   onSelectHistory: (image: GeneratedSceneImage) => void;
   // 配置信息
   outputSize: string;
-  platform: 'dashscope' | 'openrouter';
+  platform: 'dashscope' | 'openrouter' | 'jimeng';
   imageModel: string;
   // 是否有产品图（决定使用图生图还是文生图）
   hasProductImages?: boolean;
@@ -176,9 +176,9 @@ export default function ScenePreview({
 
   // 计算费用预估（基于模型和生成数量）
   const getEstimatedCost = () => {
-    // 图生图或百炼模型都是免费
-    if (hasProductImages || platform === 'dashscope') {
-      return { text: '免费', isFree: true };
+    // 图生图、百炼模型、即梦AI都是免费
+    if (hasProductImages || platform === 'dashscope' || platform === 'jimeng') {
+      return { text: '免费试用', isFree: true };
     }
 
     // OpenRouter 模型定价（每张）
@@ -299,7 +299,7 @@ export default function ScenePreview({
           }
         </span>
         <span>|</span>
-        <span>{hasProductImages ? 'wan2.6-image' : platform === 'dashscope' ? '百炼' : 'OpenRouter'}</span>
+        <span>{hasProductImages ? 'wan2.6-image' : platform === 'dashscope' ? '百炼' : platform === 'jimeng' ? '即梦AI' : 'OpenRouter'}</span>
       </div>
 
       {/* 预览区 - 支持批量图片网格显示 */}
