@@ -94,7 +94,28 @@ interface SaveResult {
   totalImages: number;
 }
 
-export default function SceneWorkbench() {
+// 转入视频工作台的数据类型
+interface VideoTransferData {
+  image: {
+    id: string;
+    base64: string;
+    filename: string;
+    source: 'scene';
+    sceneTags?: string[];
+  };
+  productInfo: {
+    name: string;
+    category: string;
+    description: string;
+  };
+  sceneTags: string[];
+}
+
+interface SceneWorkbenchProps {
+  onTransferToVideo?: (data: VideoTransferData) => void;
+}
+
+export default function SceneWorkbench({ onTransferToVideo }: SceneWorkbenchProps) {
   const [state, setState] = useState<SceneState>(initialState);
   const [isSaving, setIsSaving] = useState(false);
   const [saveResult, setSaveResult] = useState<SaveResult | null>(null);
@@ -460,6 +481,27 @@ export default function SceneWorkbench() {
     setState(prev => ({ ...prev, currentImage: image }));
   }, []);
 
+  // 转入视频工作台
+  const handleTransferToVideo = useCallback((image: GeneratedSceneImage) => {
+    if (!onTransferToVideo) return;
+
+    onTransferToVideo({
+      image: {
+        id: image.id,
+        base64: image.imageData,
+        filename: `scene_${image.id}.png`,
+        source: 'scene',
+        sceneTags: image.tags,
+      },
+      productInfo: {
+        name: state.productInfo.name,
+        category: state.productInfo.category,
+        description: state.productInfo.description,
+      },
+      sceneTags: image.tags,
+    });
+  }, [onTransferToVideo, state.productInfo]);
+
   // 保存到本地
   const handleSaveToLocal = useCallback(async (basePath?: string) => {
     if (state.history.length === 0) {
@@ -629,6 +671,7 @@ export default function SceneWorkbench() {
             saveError={saveError}
             onSaveToLocal={handleSaveToLocal}
             onClearSaveError={() => setSaveError(null)}
+            onTransferToVideo={onTransferToVideo ? handleTransferToVideo : undefined}
           />
         </div>
       </div>

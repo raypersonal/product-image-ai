@@ -138,6 +138,8 @@ interface ScenePreviewProps {
   saveError?: string | null;
   onSaveToLocal?: (basePath: string) => void;
   onClearSaveError?: () => void;
+  // 转视频
+  onTransferToVideo?: (image: GeneratedSceneImage) => void;
 }
 
 export default function ScenePreview({
@@ -162,6 +164,7 @@ export default function ScenePreview({
   saveError = null,
   onSaveToLocal,
   onClearSaveError,
+  onTransferToVideo,
 }: ScenePreviewProps) {
   const [showFullPrompt, setShowFullPrompt] = useState(false);
   // 预览的图片对象（用于模态框显示和下载）
@@ -170,9 +173,6 @@ export default function ScenePreview({
   const [replacingImage, setReplacingImage] = useState<GeneratedSceneImage | null>(null);
   // 替换成功提示
   const [replaceSuccess, setReplaceSuccess] = useState(false);
-
-  // 生成模式
-  const generationMode = hasProductImages ? 'img2img' : 'text2img';
 
   // 计算费用预估（基于模型和生成数量）
   const getEstimatedCost = () => {
@@ -345,6 +345,18 @@ export default function ScenePreview({
                 >
                   📥
                 </button>
+                {onTransferToVideo && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTransferToVideo(img);
+                    }}
+                    className="p-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-white"
+                    title="转视频"
+                  >
+                    🎬
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -383,7 +395,7 @@ export default function ScenePreview({
 
       {/* 当前图片的操作按钮 */}
       {currentImage && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className={`grid gap-2 ${onTransferToVideo ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <button
             onClick={onRegenerate}
             disabled={isGenerating}
@@ -397,6 +409,14 @@ export default function ScenePreview({
           >
             📥 下载
           </button>
+          {onTransferToVideo && (
+            <button
+              onClick={() => onTransferToVideo(currentImage)}
+              className="py-2.5 bg-purple-600/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-600/30 transition-colors flex items-center justify-center gap-1"
+            >
+              🎬 转视频
+            </button>
+          )}
           <button
             onClick={() => setReplacingImage(currentImage)}
             className="py-2.5 bg-green-600/20 text-green-500 rounded-lg text-sm font-medium hover:bg-green-600/30 transition-colors flex items-center justify-center gap-1"

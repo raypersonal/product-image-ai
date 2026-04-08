@@ -62,6 +62,7 @@ export default function SceneProductUpload({
   productInfo,
   onAddImage,
   onRemoveImage,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onUpdateImage,
   onSetProductInfo,
 }: SceneProductUploadProps) {

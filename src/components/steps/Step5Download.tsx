@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
 import { ALL_IMAGE_TYPES, calculateEstimatedCost, getTypeConfig, getAspectRatioStyle, isWideAspectRatio } from '@/types';
 import JSZip from 'jszip';
-import SavePathSelector, { getSavedPath } from '@/components/SavePathSelector';
+import SavePathSelector from '@/components/SavePathSelector';
 
 interface SaveResult {
   outputPath: string;

@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import { useApp } from '@/context/AppContext';
-import { ALL_IMAGE_TYPES, getTypeConfig } from '@/types';
+import { ALL_IMAGE_TYPES } from '@/types';
 import { GeneratedSceneImage } from './SceneWorkbench';
 
 interface ReplaceToMainFlowModalProps {
