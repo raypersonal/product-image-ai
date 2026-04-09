@@ -71,12 +71,6 @@ function getBase64FileSize(base64: string): number {
   return Math.round(base64.length * 3 / 4);
 }
 
-// 目标尺寸配置（用于压缩）
-const TARGET_DIMENSIONS = {
-  '16:9': { width: 1280, height: 720 },
-  '9:16': { width: 720, height: 1280 },
-  '1:1': { width: 1080, height: 1080 },
-};
 
 /**
  * 压缩图片到适合视频生成的尺寸
