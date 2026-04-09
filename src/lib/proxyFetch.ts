@@ -31,7 +31,8 @@ function needsProxy(url: string): boolean {
  * 支持代理的 fetch
  * 自动检测 HTTP_PROXY 环境变量和需要代理的域名
  */
-export async function proxyFetch(url: string, options?: RequestInit): Promise<Response> {
+export async function proxyFetch(urlInput: string | URL | RequestInfo, options?: RequestInit): Promise<Response> {
+  const url = typeof urlInput === 'string' ? urlInput : urlInput instanceof URL ? urlInput.toString() : urlInput.url;
   const proxyUrl = process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.https_proxy;
 
   // 如果有代理配置且 URL 需要代理
