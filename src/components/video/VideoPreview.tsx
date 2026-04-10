@@ -17,8 +17,9 @@ interface VideoPreviewProps {
   onClearError: () => void;
 }
 
-function getProxiedVideoUrl(url: string): string {
-  return `/api/video/proxy?url=${encodeURIComponent(url)}`;
+function getProxiedVideoUrl(url: string, download = false): string {
+  const base = `/api/video/proxy?url=${encodeURIComponent(url)}`;
+  return download ? `${base}&download=1` : base;
 }
 
 export default function VideoPreview({
@@ -151,7 +152,7 @@ export default function VideoPreview({
       {currentVideo && (
         <div className="space-y-2">
           <a
-            href={getProxiedVideoUrl(currentVideo.videoUrl)}
+            href={getProxiedVideoUrl(currentVideo.videoUrl, true)}
             download={`video_${currentVideo.id}.mp4`}
             className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-1"
           >
