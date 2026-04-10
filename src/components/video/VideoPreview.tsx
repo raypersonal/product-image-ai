@@ -17,6 +17,10 @@ interface VideoPreviewProps {
   onClearError: () => void;
 }
 
+function getProxiedVideoUrl(url: string): string {
+  return `/api/video/proxy?url=${encodeURIComponent(url)}`;
+}
+
 export default function VideoPreview({
   isGenerating,
   generationStatus,
@@ -120,7 +124,7 @@ export default function VideoPreview({
         {currentVideo ? (
           <video
             ref={videoRef}
-            src={currentVideo.videoUrl}
+            src={getProxiedVideoUrl(currentVideo.videoUrl)}
             controls
             loop
             className="w-full h-full object-contain"
@@ -147,10 +151,8 @@ export default function VideoPreview({
       {currentVideo && (
         <div className="space-y-2">
           <a
-            href={currentVideo.videoUrl}
+            href={getProxiedVideoUrl(currentVideo.videoUrl)}
             download={`video_${currentVideo.id}.mp4`}
-            target="_blank"
-            rel="noopener noreferrer"
             className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-1"
           >
             📥 下载视频
