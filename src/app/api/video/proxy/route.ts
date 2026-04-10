@@ -32,7 +32,7 @@ export async function GET(req: Request) {
     if (cr) resHeaders.set('Content-Range', cr);
 
     return new Response(upstream.body, { status: upstream.status, headers: resHeaders });
-  } catch (err: any) {
-    return new Response(JSON.stringify({ error: err.message, name: err.name, target: targetUrl.toString() }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+  } catch (err: unknown) {
+    return new Response(JSON.stringify({ error: err instanceof Error ? err.message : String(err), name: err instanceof Error ? err.name : 'Unknown', target: targetUrl.toString() }), { status: 502, headers: { 'Content-Type': 'application/json' } });
   }
 }
