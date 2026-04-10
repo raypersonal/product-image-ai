@@ -18,7 +18,7 @@ interface VideoPreviewProps {
 }
 
 function getProxiedVideoUrl(url: string): string {
-  return `https://video.fasurkit.com/?url=${encodeURIComponent(url)}`;
+  return `/api/video/proxy?url=${encodeURIComponent(url)}`;
 }
 
 export default function VideoPreview({
