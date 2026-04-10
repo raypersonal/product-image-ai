@@ -1,38 +1,38 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { proxyFetch } from '@/lib/proxyFetch';
+export const runtime = 'edge';
 
-export async function GET(request: NextRequest) {
-  const url = request.nextUrl.searchParams.get('url');
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const url = searchParams.get('url');
 
   if (!url) {
-    return NextResponse.json({ error: '缺少 url 参数' }, { status: 400 });
+    return new Response(JSON.stringify({ error: '缺少 url 参数' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 
   try {
-    const response = await proxyFetch(url);
+    const response = await fetch(url);
 
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: `远程请求失败: HTTP ${response.status}` },
-        { status: response.status }
-      );
+    if (!response.ok || !response.body) {
+      return new Response(JSON.stringify({ error: `远程请求失败: HTTP ${response.status}` }), {
+        status: response.status,
+        headers: { 'Content-Type': 'application/json' },
+      });
     }
 
-    const arrayBuffer = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || 'video/mp4';
-
-    return new NextResponse(arrayBuffer, {
+    return new Response(response.body, {
       headers: {
-        'Content-Type': contentType,
+        'Content-Type': response.headers.get('content-type') || 'video/mp4',
         'Content-Disposition': 'inline; filename="video.mp4"',
         'Cache-Control': 'public, max-age=86400',
       },
     });
   } catch (error) {
     console.error('Video proxy error:', error);
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : '代理请求失败' },
-      { status: 500 }
-    );
+    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : '代理请求失败' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
   }
 }
