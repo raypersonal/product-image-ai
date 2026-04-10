@@ -18,7 +18,7 @@ interface VideoPreviewProps {
 }
 
 function getProxiedVideoUrl(url: string): string {
-  return `/api/video/proxy?url=${encodeURIComponent(url)}`;
+  return url;
 }
 
 export default function VideoPreview({
