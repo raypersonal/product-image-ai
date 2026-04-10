@@ -7,7 +7,7 @@
 export const JIMENG_VIDEO_MODELS = {
   // 图生视频 3.0 (1080P)
   img2video: {
-    reqKey: 'jimeng_i2v_lite_v30_1080',
+    reqKey: 'jimeng_i2v_first_v30_1080',
     name: '即梦AI 图生视频3.0',
     desc: '1080P高清视频生成',
     resolution: '1080P',
