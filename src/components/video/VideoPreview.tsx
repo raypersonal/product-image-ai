@@ -17,9 +17,8 @@ interface VideoPreviewProps {
   onClearError: () => void;
 }
 
-function getProxiedVideoUrl(url: string, download = false): string {
-  const base = `/api/video/proxy?url=${encodeURIComponent(url)}`;
-  return download ? `${base}&download=1` : base;
+function getProxiedVideoUrl(url: string): string {
+  return `/api/video/proxy?url=${encodeURIComponent(url)}`;
 }
 
 export default function VideoPreview({
@@ -42,6 +41,23 @@ export default function VideoPreview({
       videoRef.current.play().catch(() => {});
     }
   }, [currentVideo]);
+
+  const handleDownload = async () => {
+    if (!currentVideo) return;
+    try {
+      const proxyUrl = getProxiedVideoUrl(currentVideo.videoUrl);
+      const resp = await fetch(proxyUrl);
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `video_${currentVideo.id}.mp4`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Download failed:', e);
+    }
+  };
 
   // 获取状态文本
   const getStatusText = () => {
@@ -151,13 +167,12 @@ export default function VideoPreview({
       {/* 操作按钮 */}
       {currentVideo && (
         <div className="space-y-2">
-          <a
-            href={getProxiedVideoUrl(currentVideo.videoUrl, true)}
-            download={`video_${currentVideo.id}.mp4`}
+          <button
+            onClick={handleDownload}
             className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-1"
           >
             📥 下载视频
-          </a>
+          </button>
           <p className="text-xs text-center text-muted">
             提示：如下载失败，请右键视频 → 另存为
           </p>

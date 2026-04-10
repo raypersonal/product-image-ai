@@ -17,15 +17,9 @@ export async function GET(req: Request) {
   respHeaders.set('Cache-Control', 'public, max-age=86400');
   respHeaders.set('Accept-Ranges', 'bytes');
 
-  // 只在 206 Partial Content 时透传 Content-Range 和 Content-Length
   if (resp.status === 206) {
     if (resp.headers.has('Content-Range')) respHeaders.set('Content-Range', resp.headers.get('Content-Range')!);
     if (resp.headers.has('Content-Length')) respHeaders.set('Content-Length', resp.headers.get('Content-Length')!);
-  }
-  // 200 完整响应时不设 Content-Length，让 Edge Runtime 自动处理
-
-  if (searchParams.get('download') === '1') {
-    respHeaders.set('Content-Disposition', 'attachment; filename="video.mp4"');
   }
 
   return new Response(resp.body, { status: resp.status, headers: respHeaders });
