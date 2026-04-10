@@ -15,16 +15,24 @@ export async function GET(req: Request) {
   const range = req.headers.get('Range');
   if (range) headers['Range'] = range;
 
-  const upstream = await fetch(targetUrl.toString(), { headers });
+  try {
+    const upstream = await fetch(targetUrl.toString(), { headers });
 
-  const resHeaders = new Headers({
-    'Content-Type': upstream.headers.get('Content-Type') || 'video/mp4',
-    'Accept-Ranges': 'bytes',
-    'Cache-Control': 'public, max-age=86400',
-    'Access-Control-Allow-Origin': '*',
-  });
-  const cr = upstream.headers.get('Content-Range');
-  if (cr) resHeaders.set('Content-Range', cr);
+    if (!upstream.ok && upstream.status !== 206) {
+      return new Response(JSON.stringify({ error: 'upstream error', status: upstream.status, contentType: upstream.headers.get('content-type') }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+    }
 
-  return new Response(upstream.body, { status: upstream.status, headers: resHeaders });
+    const resHeaders = new Headers({
+      'Content-Type': upstream.headers.get('Content-Type') || 'video/mp4',
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'public, max-age=86400',
+      'Access-Control-Allow-Origin': '*',
+    });
+    const cr = upstream.headers.get('Content-Range');
+    if (cr) resHeaders.set('Content-Range', cr);
+
+    return new Response(upstream.body, { status: upstream.status, headers: resHeaders });
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message, name: err.name, target: targetUrl.toString() }), { status: 502, headers: { 'Content-Type': 'application/json' } });
+  }
 }
