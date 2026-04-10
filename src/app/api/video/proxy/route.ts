@@ -5,32 +5,24 @@ export async function GET(req: Request) {
   const url = searchParams.get('url');
   if (!url) return new Response('Missing url', { status: 400 });
 
-  // 转发 Range header
-  const headers: Record<string, string> = {};
+  const fetchHeaders = new Headers();
   const range = req.headers.get('Range');
-  if (range) headers['Range'] = range;
+  if (range) fetchHeaders.set('Range', range);
 
-  const resp = await fetch(url, { headers });
+  const resp = await fetch(url, { headers: fetchHeaders });
   if (!resp.ok && resp.status !== 206) return new Response('Fetch failed', { status: resp.status });
 
-  const respHeaders: Record<string, string> = {
-    'Content-Type': resp.headers.get('Content-Type') || 'video/mp4',
-    'Cache-Control': 'public, max-age=86400',
-    'Accept-Ranges': 'bytes',
-  };
+  const respHeaders = new Headers();
+  respHeaders.set('Content-Type', resp.headers.get('Content-Type') || 'video/mp4');
+  respHeaders.set('Cache-Control', 'public, max-age=86400');
+  respHeaders.set('Accept-Ranges', 'bytes');
 
-  const cl = resp.headers.get('Content-Length');
-  if (cl) respHeaders['Content-Length'] = cl;
-  const cr = resp.headers.get('Content-Range');
-  if (cr) respHeaders['Content-Range'] = cr;
+  if (resp.headers.has('Content-Length')) respHeaders.set('Content-Length', resp.headers.get('Content-Length')!);
+  if (resp.headers.has('Content-Range')) respHeaders.set('Content-Range', resp.headers.get('Content-Range')!);
 
-  const download = searchParams.get('download');
-  if (download === '1') {
-    respHeaders['Content-Disposition'] = 'attachment; filename="video.mp4"';
+  if (searchParams.get('download') === '1') {
+    respHeaders.set('Content-Disposition', 'attachment; filename="video.mp4"');
   }
 
-  return new Response(resp.body, {
-    status: resp.status,
-    headers: respHeaders,
-  });
+  return new Response(resp.body, { status: resp.status, headers: respHeaders });
 }
