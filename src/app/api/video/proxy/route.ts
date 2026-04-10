@@ -1,38 +1,18 @@
 export const runtime = 'edge';
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
   const url = searchParams.get('url');
+  if (!url) return new Response('Missing url', { status: 400 });
 
-  if (!url) {
-    return new Response(JSON.stringify({ error: '缺少 url 参数' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  const resp = await fetch(url);
+  if (!resp.ok) return new Response('Fetch failed', { status: resp.status });
 
-  try {
-    const response = await fetch(url);
-
-    if (!response.ok || !response.body) {
-      return new Response(JSON.stringify({ error: `远程请求失败: HTTP ${response.status}` }), {
-        status: response.status,
-        headers: { 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(response.body, {
-      headers: {
-        'Content-Type': response.headers.get('content-type') || 'video/mp4',
-        'Content-Disposition': 'inline; filename="video.mp4"',
-        'Cache-Control': 'public, max-age=86400',
-      },
-    });
-  } catch (error) {
-    console.error('Video proxy error:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : '代理请求失败' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  return new Response(resp.body, {
+    headers: {
+      'Content-Type': resp.headers.get('Content-Type') || 'video/mp4',
+      'Content-Disposition': 'attachment; filename="video.mp4"',
+      'Cache-Control': 'public, max-age=86400',
+    },
+  });
 }
