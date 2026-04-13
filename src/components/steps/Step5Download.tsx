@@ -227,15 +227,13 @@ export default function Step5Download() {
   return (
     <div className="h-full flex flex-col">
       {/* 步骤说明 */}
-      <div className="p-4 border-b border-border bg-secondary/50">
-        <h2 className="text-lg font-bold text-foreground">📥 Step 5: 查看 & 下载</h2>
-        <p className="text-sm text-muted mt-1">
-          预览所有生成的图片，下载单张或打包下载全部
-        </p>
+      <div className="h-12 flex items-center gap-3 px-4 border-b border-border bg-secondary">
+        <h2 className="text-heading-md text-foreground">Step 5: 查看 & 下载</h2>
+        <span className="text-body-sm text-muted">预览所有生成的图片，下载单张或打包下载全部</span>
       </div>
 
       {/* 工具栏 */}
-      <div className="p-4 border-b border-border bg-secondary/30 flex items-center gap-4">
+      <div className="p-4 border-b border-border bg-surface flex items-center gap-4">
         <div className="text-sm text-muted">
           已生成 <span className="text-primary font-bold">{completedImages.length}</span> 张图片
           {failedImages.length > 0 && (
@@ -272,7 +270,7 @@ export default function Step5Download() {
         <button
           onClick={downloadAllAsZip}
           disabled={isDownloading || completedImages.length === 0}
-          className="px-6 py-2 bg-primary text-background rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-4 py-[7px] bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isDownloading ? '打包中...' : '📦 全部下载（ZIP）'}
         </button>
@@ -317,8 +315,7 @@ export default function Step5Download() {
       <div className="flex-1 overflow-y-auto p-4">
         {completedImages.length === 0 ? (
           <div className="text-center py-12 text-muted">
-            <div className="text-6xl mb-4">🖼️</div>
-            <p>暂无已生成的图片</p>
+              <p>暂无已生成的图片</p>
             <p className="text-sm mt-2">请先在 Step 4 生成图片</p>
           </div>
         ) : (
@@ -364,7 +361,7 @@ export default function Step5Download() {
                                 e.stopPropagation();
                                 downloadSingleImage(image.url!, filename);
                               }}
-                              className="px-4 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary-hover"
+                              className="px-4 py-[7px] bg-primary text-white rounded-control text-sm font-medium hover:bg-primary-hover"
                             >
                               📥 下载
                             </button>
@@ -395,18 +392,18 @@ export default function Step5Download() {
       {/* 图片预览模态框 */}
       {selectedImage && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-8"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-8"
           onClick={() => setSelectedImage(null)}
         >
           <div className="relative max-w-4xl max-h-full">
             <img
               src={selectedImage}
               alt="Preview"
-              className="max-w-full max-h-[80vh] object-contain rounded-lg"
+              className="max-w-full max-h-[80vh] object-contain rounded-modal"
             />
             <button
               onClick={() => setSelectedImage(null)}
-              className="absolute -top-4 -right-4 w-10 h-10 bg-secondary rounded-full flex items-center justify-center text-foreground hover:bg-secondary-hover"
+              className="absolute -top-3 -right-3 w-7 h-7 bg-overlay rounded-control flex items-center justify-center text-foreground hover:bg-elevated border border-border-strong"
             >
               ✕
             </button>

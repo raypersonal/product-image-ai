@@ -100,16 +100,15 @@ export default function ScenePromptEditor({
             <button
               key={mode.value}
               onClick={() => onSetPromptMode(mode.value)}
-              className={`px-3 py-2 rounded-lg text-sm transition-all duration-200 flex flex-col items-center ${
+              className={`px-3 py-2 rounded-control text-body-sm transition-colors flex flex-col items-center ${
                 promptMode === mode.value
-                  ? 'bg-primary text-background'
-                  : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'
+                  ? 'bg-primary text-white'
+                  : 'bg-surface text-muted border border-border hover:text-foreground hover:bg-surface-hover'
               }`}
             >
-              <span className="text-lg mb-0.5">{mode.icon}</span>
               <span className="font-medium">{mode.label}</span>
-              <span className={`text-xs mt-0.5 ${
-                promptMode === mode.value ? 'text-background/70' : 'text-muted'
+              <span className={`text-caption mt-0.5 ${
+                promptMode === mode.value ? 'text-white/70' : 'text-muted'
               }`}>
                 {mode.desc}
               </span>
@@ -130,16 +129,15 @@ export default function ScenePromptEditor({
         <button
           onClick={onGeneratePrompt}
           disabled={!canGeneratePrompt || isGeneratingPrompt}
-          className="w-full py-2.5 bg-secondary text-foreground rounded-lg font-medium text-sm hover:bg-secondary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full py-[7px] bg-surface text-foreground border border-border rounded-control font-medium text-body-sm hover:bg-surface-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {isGeneratingPrompt ? (
             <>
-              <span className="animate-spin">⏳</span>
+              <span className="w-3.5 h-3.5 border-2 border-foreground border-t-transparent rounded-full animate-spin"></span>
               生成提示词中...
             </>
           ) : (
             <>
-              <span>✨</span>
               {prompt && !isPromptEdited ? '重新生成提示词' : '生成提示词'}
             </>
           )}
@@ -153,12 +151,12 @@ export default function ScenePromptEditor({
             提示词
           </label>
           {isAutoMode && (
-            <span className="text-xs text-muted bg-secondary px-2 py-0.5 rounded">
+            <span className="text-caption text-muted bg-surface px-2 py-0.5 rounded-pill border border-border">
               自动模式下只读
             </span>
           )}
           {promptMode === 'hybrid' && isPromptEdited && (
-            <span className="text-xs text-primary bg-primary/10 px-2 py-0.5 rounded">
+            <span className="text-caption text-accent-text bg-accent-subtle px-2 py-0.5 rounded-pill">
               已手动编辑
             </span>
           )}
@@ -177,8 +175,8 @@ export default function ScenePromptEditor({
           rows={6}
           className={`w-full px-3 py-2 bg-background border border-border rounded-lg text-sm text-foreground placeholder-muted resize-none transition-colors ${
             isAutoMode
-              ? 'opacity-70 cursor-not-allowed bg-secondary/30'
-              : 'focus:border-primary focus:ring-1 focus:ring-primary/20'
+              ? 'opacity-70 cursor-not-allowed bg-surface'
+              : 'focus:border-[rgba(94,106,210,0.6)] focus:shadow-[0_0_0_3px_rgba(94,106,210,0.12)]'
           }`}
         />
         {prompt && (
@@ -202,19 +200,16 @@ export default function ScenePromptEditor({
       <div className="border border-border rounded-lg overflow-hidden">
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="w-full px-3 py-2.5 bg-secondary/50 text-sm font-medium text-foreground flex items-center justify-between hover:bg-secondary transition-colors"
+          className="w-full px-3 py-2.5 bg-surface text-body-sm font-medium text-foreground flex items-center justify-between hover:bg-surface-hover transition-colors"
         >
-          <span className="flex items-center gap-2">
-            <span>⚙️</span>
-            高级选项
-          </span>
+          <span>高级选项</span>
           <span className={`transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`}>
             ▼
           </span>
         </button>
 
         {showAdvanced && (
-          <div className="p-3 space-y-4 bg-secondary/20">
+          <div className="p-3 space-y-4 bg-background">
             {/* 输出尺寸 */}
             <div>
               <label className="block text-xs text-muted mb-1.5">

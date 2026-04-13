@@ -252,41 +252,39 @@ export default function Step1ProductInfo() {
   return (
     <div className="h-full flex flex-col">
       {/* 步骤说明 */}
-      <div className="p-4 border-b border-border bg-secondary/50">
-        <h2 className="text-lg font-bold text-foreground">📝 Step 1: 产品信息输入</h2>
-        <p className="text-sm text-muted mt-1">
-          填写产品基本信息，可手动输入或从飞书多维表格读取
-        </p>
+      <div className="h-12 flex items-center gap-3 px-4 border-b border-border bg-secondary">
+        <h2 className="text-heading-md text-foreground">Step 1: 产品信息输入</h2>
+        <span className="text-body-sm text-muted">填写产品基本信息，可手动输入或从飞书多维表格读取</span>
       </div>
 
       {/* Tab 切换 */}
       <div className="flex border-b border-border">
         <button
           onClick={() => setActiveTab('manual')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 h-9 text-body-sm font-medium transition-colors ${
             activeTab === 'manual'
-              ? 'text-primary border-b-2 border-primary bg-primary/5'
+              ? 'text-foreground border-b-2 border-primary'
               : 'text-muted hover:text-foreground'
           }`}
         >
-          ✍️ 手动填写
+          手动填写
         </button>
         <button
           onClick={() => setActiveTab('feishu')}
-          className={`flex-1 py-3 text-sm font-medium transition-colors ${
+          className={`flex-1 h-9 text-body-sm font-medium transition-colors ${
             activeTab === 'feishu'
-              ? 'text-primary border-b-2 border-primary bg-primary/5'
+              ? 'text-foreground border-b-2 border-primary'
               : 'text-muted hover:text-foreground'
           }`}
         >
-          📊 从飞书读取
+          从飞书读取
         </button>
       </div>
 
       {/* 内容区 */}
       <div className="flex-1 overflow-y-auto p-4">
         {activeTab === 'feishu' && (
-          <div className="mb-6 p-4 bg-secondary rounded-lg">
+          <div className="mb-6 p-4 bg-surface rounded-card border border-border">
             <h3 className="text-sm font-medium text-foreground mb-3">飞书多维表格配置</h3>
             <div className="space-y-3">
               <div>
@@ -312,7 +310,7 @@ export default function Step1ProductInfo() {
               <button
                 onClick={loadFeishuRecords}
                 disabled={isLoadingRecords}
-                className="w-full py-2 bg-primary text-background rounded-lg font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full py-[7px] bg-primary text-white rounded-control font-medium hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isLoadingRecords ? '读取中...' : '📥 读取记录'}
               </button>
@@ -458,8 +456,8 @@ export default function Step1ProductInfo() {
                   onClick={() => toggleStyle(style.value)}
                   className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     productInfo.stylePreferences.includes(style.value)
-                      ? 'bg-primary text-background'
-                      : 'bg-secondary text-muted hover:bg-secondary-hover hover:text-foreground'
+                      ? 'bg-primary text-white'
+                      : 'bg-surface text-muted border border-border hover:bg-surface-hover hover:text-foreground'
                   }`}
                 >
                   {style.label}
@@ -471,7 +469,7 @@ export default function Step1ProductInfo() {
           {/* 参考图片上传区 */}
           <div className="mt-6 pt-6 border-t border-border">
             <label className="block text-sm font-medium text-foreground mb-2">
-              📷 参考图片（可选，最多6张）
+              参考图片（可选，最多6张）
             </label>
             <p className="text-xs text-muted mb-3">
               上传产品实拍图、竞品图或期望风格的参考图，AI将基于这些图片生成更精准的场景
@@ -499,7 +497,7 @@ export default function Step1ProductInfo() {
                   : 'border-border hover:border-primary/50 hover:bg-secondary/50'
               } ${referenceImages.length >= 6 ? 'opacity-50 cursor-not-allowed' : ''}`}
             >
-              <div className="text-primary text-3xl mb-2">📁</div>
+              <div className="text-muted text-2xl mb-2">+</div>
               <p className="text-sm text-foreground">
                 点击或拖拽图片到此处上传
               </p>
@@ -517,7 +515,7 @@ export default function Step1ProductInfo() {
             {referenceImages.length > 0 && (
               <div className="mt-4 grid grid-cols-2 gap-4">
                 {referenceImages.map((img, index) => (
-                  <div key={img.id} className="bg-secondary rounded-lg p-3">
+                  <div key={img.id} className="bg-surface rounded-card p-3 border border-border">
                     <div className="relative aspect-video mb-2 rounded overflow-hidden bg-background">
                       <img
                         src={img.base64}

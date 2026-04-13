@@ -46,17 +46,11 @@ export default function VideoPromptEditor({
 
   return (
     <div className="p-4 space-y-5">
-      <h2 className="font-semibold text-foreground flex items-center gap-2">
-        <span>🎬</span>
-        视频配置
-      </h2>
+      <h2 className="text-heading-md text-foreground">视频配置</h2>
 
       {/* 运镜选择器 */}
       <div>
-        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-          <span>📹</span>
-          运镜方式
-        </h3>
+        <h3 className="text-label text-foreground mb-2">运镜方式</h3>
         <CameraMotionSelector
           selected={cameraMotion}
           onSelect={onSetCameraMotion}
@@ -65,11 +59,10 @@ export default function VideoPromptEditor({
 
       {/* 动效标签 */}
       <div>
-        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-          <span>✨</span>
+        <h3 className="text-label text-foreground mb-2 flex items-center gap-2">
           动效效果
           {selectedEffects.length > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-green-600 text-white text-xs rounded">
+            <span className="px-1.5 py-0.5 bg-primary text-white text-caption rounded-pill">
               {selectedEffects.length}
             </span>
           )}
@@ -88,10 +81,10 @@ export default function VideoPromptEditor({
                     <button
                       key={effect.id}
                       onClick={() => onToggleEffect(effect.id)}
-                      className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                      className={`px-2.5 py-1.5 rounded-control text-caption font-medium transition-colors ${
                         isSelected
-                          ? 'bg-green-600 text-white'
-                          : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'
+                          ? 'bg-primary text-white'
+                          : 'bg-surface text-muted border border-border hover:text-foreground hover:bg-surface-hover'
                       }`}
                     >
                       {effect.name}
@@ -106,19 +99,16 @@ export default function VideoPromptEditor({
 
       {/* 视频比例选择 */}
       <div>
-        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-          <span>📐</span>
-          视频比例
-        </h3>
+        <h3 className="text-label text-foreground mb-2">视频比例</h3>
         <div className="flex gap-2">
           {VIDEO_ASPECT_RATIOS.map((ratio) => (
             <button
               key={ratio.id}
               onClick={() => onSetAspectRatio(ratio.id as '16:9' | '9:16' | '1:1')}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 py-[7px] rounded-control text-body-sm font-medium transition-colors ${
                 aspectRatio === ratio.id
-                  ? 'bg-purple-600 text-white'
-                  : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'
+                  ? 'bg-primary text-white'
+                  : 'bg-surface text-muted border border-border hover:text-foreground hover:bg-surface-hover'
               }`}
             >
               <span className="mr-1">{ratio.icon}</span>
@@ -128,9 +118,8 @@ export default function VideoPromptEditor({
         </div>
         {/* 扩图提示 */}
         {needsOutpaint && (
-          <div className="mt-2 px-3 py-2 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-            <p className="text-xs text-yellow-400">
-              <span className="mr-1">⚠️</span>
+          <div className="mt-2 px-3 py-2 bg-warning/10 border border-warning/25 rounded-control">
+            <p className="text-caption text-warning">
               源图比例为 {sourceImageRatio}，将自动扩展至 {aspectRatio}
             </p>
           </div>
@@ -139,19 +128,16 @@ export default function VideoPromptEditor({
 
       {/* 时长选择 */}
       <div>
-        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-          <span>⏱️</span>
-          视频时长
-        </h3>
+        <h3 className="text-label text-foreground mb-2">视频时长</h3>
         <div className="flex gap-2">
           {VIDEO_DURATION_OPTIONS.map((option) => (
             <button
               key={option.value}
               onClick={() => onSetDuration(option.value)}
-              className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`flex-1 py-[7px] rounded-control text-body-sm font-medium transition-colors ${
                 duration === option.value
-                  ? 'bg-green-600 text-white'
-                  : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'
+                  ? 'bg-primary text-white'
+                  : 'bg-surface text-muted border border-border hover:text-foreground hover:bg-surface-hover'
               }`}
             >
               {option.label}
@@ -161,7 +147,7 @@ export default function VideoPromptEditor({
       </div>
 
       {/* 分辨率显示 */}
-      <div className="flex items-center justify-between px-3 py-2 bg-secondary/50 rounded-lg">
+      <div className="flex items-center justify-between px-3 py-2 bg-surface rounded-control border border-border">
         <span className="text-sm text-muted">分辨率</span>
         <span className="text-sm font-medium text-foreground">
           {VIDEO_ASPECT_RATIOS.find(r => r.id === aspectRatio)?.width}×
@@ -171,16 +157,13 @@ export default function VideoPromptEditor({
 
       {/* 自定义文本 */}
       <div>
-        <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-          <span>✏️</span>
-          自定义补充（可选）
-        </h3>
+        <h3 className="text-label text-foreground mb-2">自定义补充（可选）</h3>
         <textarea
           value={customPrompt}
           onChange={(e) => onSetCustomPrompt(e.target.value)}
           placeholder="添加自定义描述，如：产品在视频中缓缓旋转展示..."
           rows={2}
-          className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted focus:border-green-500 focus:outline-none resize-none"
+          className="w-full px-3 py-2 bg-surface border border-border rounded-control text-sm text-foreground placeholder:text-muted resize-none"
         />
       </div>
 
@@ -194,7 +177,7 @@ export default function VideoPromptEditor({
           查看生成的 Prompt
         </button>
         {showPrompt && (
-          <div className="mt-2 p-3 bg-secondary/50 rounded-lg">
+          <div className="mt-2 p-3 bg-surface rounded-control border border-border">
             <p className="text-xs text-muted break-words leading-relaxed">
               {prompt || '请配置视频参数后自动生成'}
             </p>

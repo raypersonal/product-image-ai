@@ -107,18 +107,15 @@ export default function VideoSourcePanel({
 
   return (
     <div className="p-4 space-y-4">
-      <h2 className="font-semibold text-foreground flex items-center gap-2">
-        <span>📷</span>
-        图片来源
-      </h2>
+      <h2 className="text-heading-md text-foreground">图片来源</h2>
 
       {/* 图片上传区 */}
       {!sourceImage ? (
         <div
-          className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+          className={`border border-dashed rounded-card p-8 text-center cursor-pointer transition-colors ${
             isDragging
-              ? 'border-green-500 bg-green-500/10'
-              : 'border-border hover:border-green-500/50 hover:bg-secondary/50'
+              ? 'border-primary bg-accent-subtle'
+              : 'border-border hover:border-border-strong hover:bg-[rgba(255,255,255,0.04)]'
           }`}
           onDragEnter={handleDragEnter}
           onDragOver={handleDragEnter}
@@ -133,7 +130,7 @@ export default function VideoSourcePanel({
             className="hidden"
             onChange={(e) => handleFileUpload(e.target.files)}
           />
-          <div className="text-4xl mb-3">📤</div>
+          <div className="text-2xl text-muted mb-3">+</div>
           <p className="text-foreground font-medium mb-1">拖拽或点击上传图片</p>
           <p className="text-sm text-muted">支持 JPG、PNG 格式</p>
           <p className="text-xs text-muted mt-2">或从「场景工作台」转入已生成的图片</p>
@@ -154,7 +151,7 @@ export default function VideoSourcePanel({
             {/* 删除按钮 */}
             <button
               onClick={() => onSetSourceImage(null)}
-              className="absolute top-2 right-2 w-7 h-7 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute top-2 right-2 w-6 h-6 bg-error hover:bg-error/80 rounded-control flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity text-caption"
             >
               ✕
             </button>
@@ -166,7 +163,7 @@ export default function VideoSourcePanel({
               {sourceImage.sceneTags.slice(0, 5).map((tag) => (
                 <span
                   key={tag}
-                  className="px-2 py-0.5 bg-green-600/20 text-green-400 rounded text-xs"
+                  className="px-2 py-0.5 bg-accent-subtle text-accent-text rounded-pill text-caption"
                 >
                   {tag}
                 </span>
@@ -180,7 +177,7 @@ export default function VideoSourcePanel({
           {/* 更换图片 */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="w-full py-2 border border-border rounded-lg text-sm text-muted hover:text-foreground hover:border-green-500/50 transition-colors"
+            className="w-full py-[7px] border border-border rounded-control text-body-sm text-muted hover:text-foreground hover:bg-[rgba(255,255,255,0.06)] transition-colors"
           >
             更换图片
           </button>
@@ -205,7 +202,7 @@ export default function VideoSourcePanel({
             value={productInfo.name}
             onChange={(e) => onSetProductInfo({ name: e.target.value })}
             placeholder="例��：生日派对气球套装"
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted focus:border-green-500 focus:outline-none"
+            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted focus:border-[rgba(94,106,210,0.6)] focus:outline-none"
           />
         </div>
 
@@ -216,7 +213,7 @@ export default function VideoSourcePanel({
             value={productInfo.category}
             onChange={(e) => onSetProductInfo({ category: e.target.value })}
             placeholder="例如：派对装饰"
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted focus:border-green-500 focus:outline-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-control text-sm text-foreground placeholder:text-muted focus:border-[rgba(94,106,210,0.6)] focus:outline-none"
           />
         </div>
 
@@ -227,7 +224,7 @@ export default function VideoSourcePanel({
             onChange={(e) => onSetProductInfo({ description: e.target.value })}
             placeholder="简要描述产品特点..."
             rows={2}
-            className="w-full px-3 py-2 bg-secondary border border-border rounded-lg text-sm text-foreground placeholder:text-muted focus:border-green-500 focus:outline-none resize-none"
+            className="w-full px-3 py-2 bg-surface border border-border rounded-control text-sm text-foreground placeholder:text-muted focus:border-[rgba(94,106,210,0.6)] focus:outline-none resize-none"
           />
         </div>
       </div>

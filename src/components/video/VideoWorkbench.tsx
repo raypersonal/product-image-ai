@@ -325,11 +325,10 @@ export default function VideoWorkbench({ transferData, onClearTransfer }: VideoW
   return (
     <div className="h-full flex flex-col bg-background">
       {/* 顶部工具栏 */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🎬</span>
-          <h1 className="font-bold text-foreground">视频工作台</h1>
-          <span className="text-xs text-muted px-2 py-0.5 bg-secondary rounded">Beta</span>
+      <div className="h-12 flex-shrink-0 px-4 flex items-center justify-between border-b border-border bg-secondary">
+        <div className="flex items-center gap-3">
+          <h1 className="text-heading-md text-foreground">视频工作台</h1>
+          <span className="text-caption px-2 py-0.5 bg-accent-subtle text-accent-text rounded-pill">Beta</span>
         </div>
 
         {/* 模型选择器 */}

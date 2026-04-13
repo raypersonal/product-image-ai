@@ -93,7 +93,7 @@ export default function SceneTagSelector({
         <label className="text-sm font-medium text-foreground">
           场景快捷标签
           {hasSelection && (
-            <span className="ml-2 text-xs text-green-500">
+            <span className="ml-2 text-xs text-accent-text">
               已选 {selectedTags.length} 个
             </span>
           )}
@@ -101,7 +101,7 @@ export default function SceneTagSelector({
         {hasSelection && (
           <button
             onClick={onClearAll}
-            className="text-xs text-gray-400 hover:text-red-400 transition-colors"
+            className="text-xs text-muted hover:text-red-400 transition-colors"
           >
             清空选择
           </button>
@@ -115,15 +115,15 @@ export default function SceneTagSelector({
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="搜索标签（中文/英文）..."
-          className="w-full px-3 py-2 pl-9 bg-[#1f2937] border border-gray-700 rounded-lg text-sm text-foreground placeholder-gray-500 focus:outline-none focus:border-green-500 transition-colors"
+          className="w-full px-3 py-2 pl-9 bg-surface border border-border rounded-lg text-sm text-foreground placeholder-text-tertiary focus:outline-none focus:border-primary transition-colors"
         />
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">
-          🔍
-        </span>
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
         {searchQuery && (
           <button
             onClick={() => setSearchQuery('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-text-tertiary hover:text-foreground"
           >
             ✕
           </button>
@@ -132,7 +132,7 @@ export default function SceneTagSelector({
 
       {/* 搜索结果提示 */}
       {isSearching && (
-        <div className="text-xs text-gray-400">
+        <div className="text-xs text-muted">
           找到 {searchResults?.length || 0} 个匹配标签
         </div>
       )}
@@ -148,11 +148,11 @@ export default function SceneTagSelector({
           const visibleTags = getVisibleTags(category);
 
           return (
-            <div key={category.id} className="border border-gray-700/50 rounded-lg overflow-hidden">
+            <div key={category.id} className="border border-border rounded-lg overflow-hidden">
               {/* 分类标题 - 可点击展开/折叠 */}
               <button
                 onClick={() => toggleCategory(category.id)}
-                className={`w-full px-3 py-2 flex items-center justify-between text-sm text-gray-400 hover:text-gray-300 hover:bg-gray-800/50 transition-colors ${
+                className={`w-full px-3 py-2 flex items-center justify-between text-sm text-muted hover:text-foreground hover:bg-[rgba(255,255,255,0.04)] transition-colors ${
                   isSearching ? 'cursor-default' : 'cursor-pointer'
                 }`}
               >
@@ -168,14 +168,14 @@ export default function SceneTagSelector({
                   <span>{category.name}</span>
                   {/* 已选数量 */}
                   {hasSelectedInCategory && (
-                    <span className="text-xs text-green-500">
+                    <span className="text-xs text-accent-text">
                       已选{selectedCount}个
                     </span>
                   )}
                 </div>
                 {/* 折叠时有选中的绿点提示 */}
                 {!isExpanded && hasSelectedInCategory && (
-                  <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                  <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
                 )}
               </button>
 
@@ -187,7 +187,7 @@ export default function SceneTagSelector({
               >
                 <div className="px-3 pb-3 pt-1">
                   {/* 标签按钮 - 移动端横向滚动，桌面端换行 */}
-                  <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap md:overflow-x-visible scrollbar-thin scrollbar-thumb-gray-700">
+                  <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-wrap md:overflow-x-visible scrollbar-thin">
                     {visibleTags.map((tag: SceneTag) => {
                       const isSelected = selectedTags.includes(tag.id);
                       return (
@@ -196,8 +196,8 @@ export default function SceneTagSelector({
                           onClick={() => onToggleTag(tag.id)}
                           className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap flex-shrink-0 ${
                             isSelected
-                              ? 'bg-green-500 text-white shadow-sm shadow-green-500/30'
-                              : 'bg-[#374151] text-gray-300 hover:text-white hover:bg-[#4b5563]'
+                              ? 'bg-primary text-white'
+                              : 'bg-surface text-muted hover:text-foreground hover:bg-surface-hover'
                           }`}
                         >
                           <span className="mr-1">{tag.emoji}</span>
@@ -215,8 +215,8 @@ export default function SceneTagSelector({
 
       {/* 选中标签预览 */}
       {hasSelection && (
-        <div className="pt-2 border-t border-gray-700">
-          <div className="text-xs text-gray-400 mb-1">已选场景组合:</div>
+        <div className="pt-2 border-t border-border">
+          <div className="text-xs text-muted mb-1">已选场景组合:</div>
           <div className="flex flex-wrap gap-1">
             {selectedTags.map((tagId) => {
               const tag = SCENE_TAG_CATEGORIES
@@ -226,7 +226,7 @@ export default function SceneTagSelector({
               return (
                 <span
                   key={tagId}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-green-500/20 text-green-400 rounded text-xs"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-subtle text-accent-text rounded text-xs"
                 >
                   {tag.emoji} {tag.en}
                   <button

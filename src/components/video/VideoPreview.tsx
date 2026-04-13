@@ -81,11 +81,11 @@ export default function VideoPreview({
     <div className="p-4 space-y-4">
       {/* 错��提示 */}
       {error && (
-        <div className="p-3 bg-red-600/20 border border-red-600/50 rounded-lg flex items-center justify-between">
-          <span className="text-sm text-red-400">{error}</span>
+        <div className="p-3 bg-error/10 border border-error/25 rounded-control flex items-center justify-between">
+          <span className="text-body-sm text-error">{error}</span>
           <button
             onClick={onClearError}
-            className="text-red-400 hover:text-red-300"
+            className="text-error hover:text-foreground"
           >
             ✕
           </button>
@@ -96,27 +96,24 @@ export default function VideoPreview({
       <button
         onClick={onGenerate}
         disabled={isGenerating || !sourceImage}
-        className="w-full py-4 bg-purple-600 text-white rounded-xl font-bold text-lg hover:bg-purple-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-purple-600/20"
+        className="w-full py-3 bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isGenerating ? (
           <>
-            <span className="animate-spin">⏳</span>
+            <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
             {getStatusText()}
           </>
         ) : (
-          <>
-            <span>🎬</span>
-            生成视频
-          </>
+          'Generate Video'
         )}
       </button>
 
       {/* 进度条 */}
       {isGenerating && (
         <div className="space-y-2">
-          <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
+          <div className="w-full h-[3px] bg-[rgba(255,255,255,0.08)] rounded-pill overflow-hidden">
             <div
-              className="h-full bg-purple-500 transition-all duration-500 ease-out"
+              className="h-full bg-primary transition-all duration-500 ease-out"
               style={{ width: `${Math.max(generationProgress, 5)}%` }}
             />
           </div>
@@ -129,7 +126,7 @@ export default function VideoPreview({
 
       {/* 费用提示 */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted">
-        <span className="text-green-400">🆓 免费试用</span>
+        <span className="text-accent-text">免费试用</span>
         <span>|</span>
         <span>即梦AI 视频3.0</span>
         <span>|</span>
@@ -137,7 +134,7 @@ export default function VideoPreview({
       </div>
 
       {/* 视频预览区 */}
-      <div className="aspect-video bg-secondary rounded-xl overflow-hidden border-2 border-border">
+      <div className="aspect-video bg-surface rounded-card overflow-hidden border border-border">
         {currentVideo ? (
           <video
             ref={videoRef}
@@ -158,8 +155,7 @@ export default function VideoPreview({
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center text-muted">
-            <span className="text-5xl mb-3">🎬</span>
-            <p>上传图片��生成视频</p>
+            <p className="text-body-sm">上传图片后生成视频</p>
           </div>
         )}
       </div>
@@ -169,9 +165,9 @@ export default function VideoPreview({
         <div className="space-y-2">
           <button
             onClick={handleDownload}
-            className="w-full py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors flex items-center justify-center gap-1"
+            className="w-full py-[7px] bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors"
           >
-            📥 下载视频
+            下载视频
           </button>
           <p className="text-xs text-center text-muted">
             提示：如下载失败，请右键视频 → 另存为
@@ -181,7 +177,7 @@ export default function VideoPreview({
 
       {/* 当前视频信息 */}
       {currentVideo && (
-        <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
+        <div className="p-3 bg-surface rounded-control border border-border space-y-1">
           <div className="flex items-center gap-2 text-xs text-muted">
             <span>运镜：{getCameraMotionById(currentVideo.cameraMotion)?.name || currentVideo.cameraMotion}</span>
             <span>|</span>
@@ -195,19 +191,16 @@ export default function VideoPreview({
       {/* 历史记录 */}
       {history.length > 0 && (
         <div>
-          <h3 className="text-sm font-medium text-foreground mb-2 flex items-center gap-1">
-            <span>📜</span>
-            历史记录
-          </h3>
+          <h3 className="text-label text-foreground mb-2">历史记录</h3>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {history.map((video, index) => (
               <div
                 key={video.id}
                 onClick={() => onSelectHistory(video)}
-                className={`flex-shrink-0 w-24 cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+                className={`flex-shrink-0 w-24 cursor-pointer rounded-card overflow-hidden transition-colors ${
                   currentVideo?.id === video.id
-                    ? 'border-purple-500'
-                    : 'border-transparent hover:border-purple-500/50'
+                    ? 'border-2 border-primary'
+                    : 'border border-border hover:border-border-strong'
                 }`}
               >
                 {video.thumbnailUrl ? (
@@ -217,8 +210,8 @@ export default function VideoPreview({
                     className="w-full aspect-video object-cover"
                   />
                 ) : (
-                  <div className="w-full aspect-video bg-secondary flex items-center justify-center">
-                    <span className="text-2xl">🎬</span>
+                  <div className="w-full aspect-video bg-surface flex items-center justify-center text-muted text-caption">
+                    Video
                   </div>
                 )}
                 <div className="p-1 bg-secondary text-center">

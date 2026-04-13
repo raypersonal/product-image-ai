@@ -204,7 +204,7 @@ export default function Step4Generate() {
     const currentSize = typeSizeMap[typeConfig.id] || typeConfig.defaultSize;
 
     return (
-      <div key={typeConfig.id} className="mb-3 bg-secondary rounded-lg overflow-hidden">
+      <div key={typeConfig.id} className="mb-3 bg-surface rounded-card overflow-hidden border border-border">
         <div className="px-4 py-3 flex items-center gap-3">
           {/* 类型名和进度 */}
           <button
@@ -293,7 +293,7 @@ export default function Step4Generate() {
                         <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <button
                             onClick={() => handleGenerateSingle(image.promptId)}
-                            className="px-3 py-2 bg-primary text-background rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors flex items-center gap-1"
+                            className="px-3 py-[7px] bg-primary text-white rounded-control text-sm font-medium hover:bg-primary-hover transition-colors"
                           >
                             🔄 重新生成
                           </button>
@@ -332,8 +332,7 @@ export default function Step4Generate() {
   if (prompts.length === 0) {
     return (
       <div className="h-full flex flex-col items-center justify-center p-8">
-        <div className="text-6xl mb-4">📝</div>
-        <h3 className="text-lg font-bold text-foreground mb-2">还没有 Prompt</h3>
+        <h3 className="text-heading-lg text-foreground mb-2">还没有 Prompt</h3>
         <p className="text-sm text-muted text-center max-w-md">
           请先在 Step 3 选择图片类型并生成 Prompt，然后再来这里生成图片
         </p>
@@ -344,15 +343,13 @@ export default function Step4Generate() {
   return (
     <div className="h-full flex flex-col">
       {/* 步骤说明 */}
-      <div className="p-4 border-b border-border bg-secondary/50">
-        <h2 className="text-lg font-bold text-foreground">🎨 Step 4: 生成图片</h2>
-        <p className="text-sm text-muted mt-1">
-          选择模型，开始生成产品图片（类型已在 Step 3 选择）
-        </p>
+      <div className="h-12 flex items-center gap-3 px-4 border-b border-border bg-secondary">
+        <h2 className="text-heading-md text-foreground">Step 4: 生成图片</h2>
+        <span className="text-body-sm text-muted">选择模型，开始生成产品图片</span>
       </div>
 
       {/* 控制栏 */}
-      <div className="p-4 border-b border-border bg-secondary/30">
+      <div className="p-4 border-b border-border bg-surface">
         <div className="flex flex-wrap gap-4 items-center">
           {/* AI 模型选择 */}
           <div>
@@ -411,13 +408,13 @@ export default function Step4Generate() {
           <button
             onClick={generateAllImages}
             disabled={isGenerating || enabledPrompts.length === 0}
-            className="px-6 py-3 bg-primary text-background rounded-lg font-bold hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-[7px] bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {enabledPrompts.length === 0
               ? '请先在 Step3 生成 Prompt'
               : isGenerating
                 ? '生成中...'
-                : `🎨 开始生成全部图片（${totalImageCount}张）`
+                : `开始生成全部图片（${totalImageCount}张）`
             }
           </button>
 
@@ -434,7 +431,7 @@ export default function Step4Generate() {
                 </span>
                 <span className="text-muted">{Math.round(progress)}%</span>
               </div>
-              <div className="h-2 bg-border rounded-full overflow-hidden">
+              <div className="h-[3px] bg-[rgba(255,255,255,0.08)] rounded-pill overflow-hidden">
                 <div
                   className="h-full bg-primary transition-all duration-300"
                   style={{ width: `${progress}%` }}
@@ -450,7 +447,7 @@ export default function Step4Generate() {
         {/* 基础类型 */}
         {enabledCoreTypes.length > 0 && (
           <div className="mb-4">
-            <h3 className="text-sm font-medium text-primary mb-2">🖼 基础图片类型</h3>
+            <h3 className="text-label text-accent-text mb-2">基础图片类型</h3>
             {enabledCoreTypes.map(typeConfig => renderTypeSection(typeConfig))}
           </div>
         )}
@@ -458,7 +455,7 @@ export default function Step4Generate() {
         {/* 附加类型 */}
         {enabledAdditionalTypes.length > 0 && (
           <div className="border-t border-border pt-4">
-            <h3 className="text-sm font-medium text-muted mb-2">📎 附加图片类型</h3>
+            <h3 className="text-label text-muted mb-2">附加图片类型</h3>
             {enabledAdditionalTypes.map(typeConfig => renderTypeSection(typeConfig))}
           </div>
         )}

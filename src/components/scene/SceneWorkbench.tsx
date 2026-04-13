@@ -580,11 +580,10 @@ export default function SceneWorkbench({ onTransferToVideo }: SceneWorkbenchProp
   return (
     <div className="h-full flex flex-col bg-background">
       {/* 顶部工具栏 */}
-      <div className="flex-shrink-0 px-4 py-3 border-b border-border bg-secondary/30 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🎨</span>
-          <h1 className="font-bold text-foreground">场景工作台</h1>
-          <span className="text-xs text-muted px-2 py-0.5 bg-secondary rounded">Beta</span>
+      <div className="h-12 flex-shrink-0 px-4 flex items-center justify-between border-b border-border bg-secondary">
+        <div className="flex items-center gap-3">
+          <h1 className="text-heading-md text-foreground">场景工作台</h1>
+          <span className="text-caption text-muted px-2 py-0.5 bg-accent-subtle text-accent-text rounded-pill">Beta</span>
         </div>
 
         {/* 模型选择器 */}
@@ -598,11 +597,11 @@ export default function SceneWorkbench({ onTransferToVideo }: SceneWorkbenchProp
 
       {/* 错误提示 */}
       {state.error && (
-        <div className="px-4 py-2 bg-red-500/10 border-b border-red-500/30 text-red-400 text-sm flex items-center justify-between">
-          <span>❌ {state.error}</span>
+        <div className="px-4 py-2 bg-error/10 border-b border-error/25 text-error text-body-sm flex items-center justify-between">
+          <span>{state.error}</span>
           <button
             onClick={() => setState(prev => ({ ...prev, error: null }))}
-            className="text-red-400 hover:text-red-300"
+            className="text-error hover:text-foreground"
           >
             ✕
           </button>
@@ -677,20 +676,19 @@ export default function SceneWorkbench({ onTransferToVideo }: SceneWorkbenchProp
       </div>
 
       {/* 移动端固定底部生成按钮 */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-background border-t border-border z-40">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 p-4 bg-secondary border-t border-border z-40">
         <button
           onClick={handleGenerateImage}
           disabled={state.isGenerating || !state.prompt}
-          className="w-full py-3 bg-green-600 text-white rounded-xl font-bold text-base hover:bg-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+          className="w-full py-3 bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {state.isGenerating ? (
             <>
-              <span className="animate-spin">⏳</span>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
               生成中... {state.generationProgress > 0 ? `${state.generationProgress}%` : ''}
             </>
           ) : (
             <>
-              <span>🎨</span>
               生成场景图 {state.generationCount > 1 ? `(${state.generationCount}张)` : ''}
             </>
           )}

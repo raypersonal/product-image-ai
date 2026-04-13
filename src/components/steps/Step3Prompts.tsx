@@ -233,15 +233,13 @@ export default function Step3Prompts() {
   return (
     <div className="h-full flex flex-col">
       {/* 步骤说明 */}
-      <div className="p-4 border-b border-border bg-secondary/50">
-        <h2 className="text-lg font-bold text-foreground">✨ Step 3: 生成图片Prompt</h2>
-        <p className="text-sm text-muted mt-1">
-          选择图片类型、尺寸和AI模型，为产品图片生成专业Prompt
-        </p>
+      <div className="h-12 flex items-center gap-3 px-4 border-b border-border bg-secondary">
+        <h2 className="text-heading-md text-foreground">Step 3: 生成图片Prompt</h2>
+        <span className="text-body-sm text-muted">选择图片类型、尺寸和AI模型</span>
       </div>
 
       {/* 控制栏：模型选择 */}
-      <div className="p-4 border-b border-border bg-secondary/30">
+      <div className="p-4 border-b border-border bg-surface">
         <div className="flex flex-wrap gap-4 items-center">
           {/* Prompt 模型选择 */}
           <div>
@@ -312,9 +310,9 @@ export default function Step3Prompts() {
 
         <div className="grid grid-cols-2 gap-4">
           {/* 基础图片类型 */}
-          <div className="bg-secondary/50 rounded-lg p-3">
-            <h4 className="text-xs font-medium text-primary mb-2 flex items-center gap-1">
-              🖼 基础图片类型
+          <div className="bg-surface rounded-card p-3 border border-border">
+            <h4 className="text-label text-accent-text mb-2 flex items-center gap-1">
+              基础图片类型
               <span className="text-muted font-normal">（默认勾选）</span>
             </h4>
             <div className="space-y-1">
@@ -323,9 +321,9 @@ export default function Step3Prompts() {
           </div>
 
           {/* 附加图片类型 */}
-          <div className="bg-secondary/50 rounded-lg p-3">
-            <h4 className="text-xs font-medium text-muted mb-2 flex items-center gap-1">
-              📎 附加图片类型
+          <div className="bg-surface rounded-card p-3 border border-border">
+            <h4 className="text-label text-muted mb-2 flex items-center gap-1">
+              附加图片类型
               <span className="font-normal">（可选）</span>
             </h4>
             <div className="space-y-1">
@@ -346,19 +344,18 @@ export default function Step3Prompts() {
             )}
 
             <div className="text-center">
-              <div className="text-6xl mb-4">📝</div>
-              <h3 className="text-lg font-bold text-foreground mb-2">准备生成 Prompt</h3>
+              <h3 className="text-heading-lg text-foreground mb-2">准备生成 Prompt</h3>
               <p className="text-sm text-muted mb-6 max-w-md">
                 已选择 {enabledTypeCount} 个类型，将生成 {totalPromptCount} 条专业的图片 Prompt
               </p>
               <button
                 onClick={handleGenerateAllPrompts}
                 disabled={isGeneratingPrompts || enabledTypeCount === 0}
-                className="px-8 py-4 bg-primary text-background rounded-xl font-bold text-lg hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="px-6 py-3 bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {enabledTypeCount === 0
                   ? '请至少选择一个类型'
-                  : `🚀 生成 ${totalPromptCount} 条 Prompt`
+                  : `生成 ${totalPromptCount} 条 Prompt`
                 }
               </button>
             </div>
@@ -367,8 +364,8 @@ export default function Step3Prompts() {
 
         {isGeneratingPrompts && (
           <div className="flex flex-col items-center justify-center h-full">
-            <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-            <h3 className="text-xl font-bold text-foreground mb-2">正在生成Prompt...</h3>
+            <div className="w-10 h-10 border-2 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+            <h3 className="text-heading-lg text-foreground mb-2">正在生成Prompt...</h3>
             <p className="text-muted">
               使用 {PROMPT_MODEL_OPTIONS.find(m => m.value === promptModel)?.label || promptModel} 生成中，请稍候
             </p>
@@ -391,7 +388,7 @@ export default function Step3Prompts() {
 
             {/* 手风琴列表 */}
             {promptsByType.map(({ type, name, count, prompts: typePrompts }) => (
-              <div key={type} className="bg-secondary rounded-lg overflow-hidden">
+              <div key={type} className="bg-surface rounded-card overflow-hidden border border-border">
                 <button
                   onClick={() => setExpandedType(expandedType === type ? null : type)}
                   className="w-full px-4 py-3 flex justify-between items-center hover:bg-secondary-hover transition-colors"

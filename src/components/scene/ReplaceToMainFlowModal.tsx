@@ -52,11 +52,11 @@ export default function ReplaceToMainFlowModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
-        className="bg-[#1a1f2e] rounded-xl w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col"
+        className="bg-surface rounded-modal w-full max-w-4xl max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* 头部 */}
@@ -77,7 +77,7 @@ export default function ReplaceToMainFlowModal({
           {!hasCompletedImages ? (
             // 没有已生成的图片
             <div className="text-center py-12">
-              <div className="text-6xl mb-4">📭</div>
+              <div className="text-6xl mb-4"></div>
               <p className="text-foreground font-medium mb-2">
                 批量生成还没有完成的图片
               </p>
@@ -89,13 +89,13 @@ export default function ReplaceToMainFlowModal({
             // 显示分组的图片
             <div className="space-y-6">
               {/* 预览：要替换的场景图 */}
-              <div className="bg-secondary/50 rounded-lg p-4">
+              <div className="bg-surface rounded-lg p-4">
                 <div className="text-sm text-muted mb-2">将使用此场景图替换：</div>
                 <div className="flex items-start gap-4">
                   <img
                     src={sceneImage.imageData}
                     alt="Scene"
-                    className="w-24 h-24 object-cover rounded-lg border-2 border-green-500"
+                    className="w-24 h-24 object-cover rounded-lg border border-primary"
                   />
                   <div className="flex-1 text-sm">
                     <p className="text-foreground line-clamp-2 mb-1">
@@ -109,7 +109,7 @@ export default function ReplaceToMainFlowModal({
                     {sceneImage.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1 mt-2">
                         {sceneImage.tags.slice(0, 4).map(tag => (
-                          <span key={tag} className="px-2 py-0.5 bg-green-600/20 text-green-400 rounded text-xs">
+                          <span key={tag} className="px-2 py-0.5 bg-accent-subtle text-accent-text rounded text-xs">
                             {tag}
                           </span>
                         ))}
@@ -130,7 +130,7 @@ export default function ReplaceToMainFlowModal({
                     {typeImages.map((img) => (
                       <div
                         key={img.id}
-                        className="group relative aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer border-2 border-transparent hover:border-green-500 transition-colors"
+                        className="group relative aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer border border-transparent hover:border-primary transition-colors"
                         onClick={() => handleReplace(img.id)}
                       >
                         <img
@@ -140,7 +140,7 @@ export default function ReplaceToMainFlowModal({
                         />
                         {/* 已替换标记 */}
                         {img.source === 'scene-workbench' && (
-                          <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-green-600 text-white text-[10px] rounded">
+                          <div className="absolute top-1 right-1 px-1.5 py-0.5 bg-primary text-white text-[10px] rounded">
                             场景工作台
                           </div>
                         )}
@@ -149,7 +149,7 @@ export default function ReplaceToMainFlowModal({
                           #{img.prompt?.index}
                         </div>
                         {/* 悬停遮罩 */}
-                        <div className="absolute inset-0 bg-green-600/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <div className="absolute inset-0 bg-primary/80 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                           <span className="text-white font-medium text-sm">
                             点击替换
                           </span>

@@ -3,75 +3,123 @@
 @tailwind utilities;
 
 :root {
-  --background: #111827;
-  --foreground: #f3f4f6;
+  --background: #0F0F0F;
+  --foreground: #E8E8E8;
+  --primary: #5E6AD2;
+  --primary-hover: #6872E5;
+  --surface: #1E1E21;
+  --border: rgba(255,255,255,0.08);
+  --border-strong: rgba(255,255,255,0.14);
+  --accent-subtle: rgba(94,106,210,0.12);
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar */
+/* ── Custom scrollbar (Linear-style thin) ── */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1f2937;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #374151;
-  border-radius: 4px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 99px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #4b5563;
+  background: rgba(255,255,255,0.18);
 }
 
-/* Loading animation */
-@keyframes pulse-green {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-pulse-green {
-  animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Progress bar animation */
-@keyframes progress {
-  0% {
-    width: 0%;
-  }
-  100% {
-    width: 100%;
-  }
-}
-
-/* Textarea and input styles */
+/* ── Focus states (purple accent) ── */
 textarea:focus,
 input:focus,
 select:focus {
   outline: none;
-  border-color: #22c55e;
-  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+  border-color: rgba(94,106,210,0.6);
+  box-shadow: 0 0 0 3px rgba(94,106,210,0.12);
 }
 
-/* Button transitions */
+/* ── Button transitions ── */
 button {
-  transition: all 0.2s ease;
+  transition: all 0.1s ease-out;
 }
 
-/* Accordion animation */
+button:active {
+  transform: scale(0.98);
+}
+
+/* ── Accordion animation ── */
 .accordion-content {
   overflow: hidden;
-  transition: max-height 0.3s ease-out;
+  transition: max-height 0.2s cubic-bezier(0.2,0,0,1);
+}
+
+/* ── Loading pulse animation ── */
+@keyframes pulse-accent {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-green {
+  animation: pulse-accent 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ── Progress bar animation ── */
+@keyframes progress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+/* ── Skeleton shimmer ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #1E1E21 25%, #252528 50%, #1E1E21 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+/* ── Progress track ── */
+.progress-track {
+  background: rgba(255,255,255,0.08);
+  border-radius: 99px;
+  height: 3px;
+}
+
+.progress-fill {
+  background: #5E6AD2;
+  border-radius: 99px;
+  height: 100%;
+  transition: width 0.3s ease-out;
+}
+
+/* ── Selection color ── */
+::selection {
+  background: rgba(94,106,210,0.3);
+  color: #E8E8E8;
+}
+
+/* ── Reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

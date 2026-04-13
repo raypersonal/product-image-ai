@@ -122,7 +122,7 @@ export default function SavePathSelector({
         <button
           onClick={handleSaveClick}
           disabled={isSaving}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
           {isSaving ? (
             <>
@@ -153,11 +153,11 @@ export default function SavePathSelector({
           onClick={handleCancel}
         >
           <div
-            className="bg-[#1a1f2e] rounded-xl p-6 w-full max-w-lg shadow-2xl"
+            className="bg-surface rounded-modal p-6 w-full max-w-lg shadow-modal"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="text-lg font-bold text-foreground mb-4">
-              📁 选择保存路径
+              选择保存路径
             </h3>
 
             <div className="space-y-4">
@@ -178,13 +178,13 @@ export default function SavePathSelector({
                   autoFocus
                 />
                 {error && (
-                  <p className="mt-2 text-sm text-red-400">{error}</p>
+                  <p className="mt-2 text-sm text-error">{error}</p>
                 )}
               </div>
 
               {/* 说明 */}
-              <div className="text-xs text-muted bg-secondary/50 rounded-lg p-3">
-                <p className="mb-1">📌 实际保存路径格式：</p>
+              <div className="text-xs text-muted bg-surface rounded-lg p-3">
+                <p className="mb-1">实际保存路径格式：</p>
                 <code className="text-primary">
                   {inputPath || '...'}/{'{产品名}'}_{'{时间戳}'}/
                 </code>
@@ -230,7 +230,7 @@ export default function SavePathSelector({
               </button>
               <button
                 onClick={handleConfirm}
-                className="px-4 py-2 bg-green-600 text-white rounded-lg font-medium hover:bg-green-500 transition-colors"
+                className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-hover transition-colors"
               >
                 确认并保存
               </button>

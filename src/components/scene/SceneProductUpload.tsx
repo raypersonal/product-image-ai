@@ -143,11 +143,8 @@ export default function SceneProductUpload({
     <div className="p-4 space-y-4">
       {/* 标题 */}
       <div>
-        <h2 className="font-medium text-foreground flex items-center gap-2">
-          <span>📷</span>
-          产品图上传
-        </h2>
-        <p className="text-xs text-muted mt-1">
+        <h2 className="text-heading-md text-foreground">产品图上传</h2>
+        <p className="text-caption text-muted mt-1">
           上传产品图片，AI将分析产品外观生成场景
         </p>
       </div>
@@ -168,13 +165,13 @@ export default function SceneProductUpload({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+        className={`border border-dashed rounded-card p-4 text-center cursor-pointer transition-colors ${
           isDragging
-            ? 'border-primary bg-primary/10'
-            : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+            ? 'border-primary bg-accent-subtle'
+            : 'border-border hover:border-border-strong hover:bg-[rgba(255,255,255,0.04)]'
         } ${productImages.length >= 6 ? 'opacity-50 cursor-not-allowed' : ''}`}
       >
-        <div className="text-primary text-2xl mb-1">📁</div>
+        <div className="text-muted text-xl mb-1">+</div>
         <p className="text-sm text-foreground">
           点击或拖拽上传
         </p>
@@ -204,7 +201,7 @@ export default function SceneProductUpload({
                 />
                 {/* 主参考图标记 */}
                 {index === 0 && (
-                  <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-primary text-background text-xs rounded">
+                  <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-primary text-white text-caption rounded-control">
                     主图
                   </div>
                 )}
@@ -227,8 +224,7 @@ export default function SceneProductUpload({
 
       {/* 分隔线 */}
       <div className="border-t border-border pt-4">
-        <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-          <span>📝</span>
+        <h3 className="text-label text-foreground mb-3">
           产品信息（可选）
         </h3>
         <p className="text-xs text-muted mb-3">
@@ -277,7 +273,7 @@ export default function SceneProductUpload({
       {/* 图片预览模态框 */}
       {previewImage && (
         <div
-          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-8"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-8"
           onClick={() => setPreviewImage(null)}
         >
           <div className="relative max-w-2xl max-h-full">
@@ -288,7 +284,7 @@ export default function SceneProductUpload({
             />
             <button
               onClick={() => setPreviewImage(null)}
-              className="absolute -top-3 -right-3 w-8 h-8 bg-secondary rounded-full flex items-center justify-center text-foreground hover:bg-secondary-hover"
+              className="absolute -top-3 -right-3 w-7 h-7 bg-overlay rounded-control flex items-center justify-center text-foreground hover:bg-elevated border border-border-strong"
             >
               ✕
             </button>

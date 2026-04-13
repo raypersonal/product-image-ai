@@ -43,58 +43,58 @@ export default function SceneModelSelector({
   const currentModel = models.find(m => m.id === imageModel) || models[0];
 
   return (
-    <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-2 flex-wrap">
-      {/* 平台切换 - 三个按钮 */}
+    <div className="flex items-center gap-3 bg-surface rounded-card p-2 border border-border flex-wrap">
+      {/* 平台切换 */}
       <div className="flex gap-1">
         <button
           onClick={() => {
             onSetPlatform('dashscope');
             onSetImageModel(DASHSCOPE_MODELS[0].id);
           }}
-          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`px-3 py-[7px] rounded-control text-body-sm font-medium transition-colors ${
             platform === 'dashscope'
-              ? 'bg-green-600 text-white shadow-md shadow-green-600/30'
-              : 'border border-gray-500 text-gray-400 hover:text-gray-200 hover:border-gray-400'
+              ? 'bg-primary text-white'
+              : 'border border-border text-muted hover:text-foreground hover:border-border-strong'
           }`}
         >
-          🆓 百炼
+          百炼
         </button>
         <button
           onClick={() => {
             onSetPlatform('jimeng');
             onSetImageModel(JIMENG_MODELS[0].id);
           }}
-          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`px-3 py-[7px] rounded-control text-body-sm font-medium transition-colors ${
             platform === 'jimeng'
-              ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-              : 'border border-gray-500 text-gray-400 hover:text-gray-200 hover:border-gray-400'
+              ? 'bg-primary text-white'
+              : 'border border-border text-muted hover:text-foreground hover:border-border-strong'
           }`}
         >
-          🎨 即梦AI
+          即梦AI
         </button>
         <button
           onClick={() => {
             onSetPlatform('openrouter');
             onSetImageModel(OPENROUTER_MODELS[0].id);
           }}
-          className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+          className={`px-3 py-[7px] rounded-control text-body-sm font-medium transition-colors ${
             platform === 'openrouter'
-              ? 'bg-orange-500 text-white shadow-md shadow-orange-500/30'
-              : 'border border-gray-500 text-gray-400 hover:text-gray-200 hover:border-gray-400'
+              ? 'bg-primary text-white'
+              : 'border border-border text-muted hover:text-foreground hover:border-border-strong'
           }`}
         >
-          💰 OpenRouter
+          OpenRouter
         </button>
       </div>
 
       {/* 分隔线 */}
-      <div className="w-px h-8 bg-gray-600" />
+      <div className="w-px h-6 bg-border" />
 
       {/* 模型选择 */}
       <select
         value={imageModel}
         onChange={(e) => onSetImageModel(e.target.value)}
-        className="px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-base text-white min-w-[180px] cursor-pointer hover:border-gray-500 focus:border-green-500 focus:outline-none transition-colors"
+        className="px-3 py-[7px] bg-background border border-border rounded-control text-body-sm text-foreground min-w-[180px] cursor-pointer hover:border-border-strong transition-colors"
       >
         {models.map((model) => (
           <option key={model.id} value={model.id}>
@@ -104,10 +104,10 @@ export default function SceneModelSelector({
       </select>
 
       {/* 当前模型信息 */}
-      <span className="text-sm text-gray-400 hidden lg:inline">
+      <span className="text-caption text-muted hidden lg:inline">
         {currentModel.desc}
         {('free' in currentModel && currentModel.free) && (
-          <span className="ml-1 text-green-400">（免费试用）</span>
+          <span className="ml-1 text-accent-text">（免费试用）</span>
         )}
       </span>
     </div>

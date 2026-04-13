@@ -19,15 +19,15 @@ export default function CameraMotionSelector({
           <button
             key={motion.id}
             onClick={() => onSelect(motion.id)}
-            className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all ${
+            className={`flex flex-col items-center justify-center p-3 rounded-card transition-colors ${
               isSelected
-                ? 'bg-green-600 text-white ring-2 ring-green-400'
-                : 'bg-secondary text-muted hover:text-foreground hover:bg-secondary-hover'
+                ? 'bg-accent-subtle border-l-2 border-primary text-foreground'
+                : 'bg-surface text-muted border border-border hover:text-foreground hover:bg-surface-hover'
             }`}
             title={motion.description}
           >
-            <span className="text-2xl mb-1">{motion.icon}</span>
-            <span className="text-xs font-medium">{motion.name}</span>
+            <span className="text-xl mb-1">{motion.icon}</span>
+            <span className="text-caption font-medium">{motion.name}</span>
           </button>
         );
       })}

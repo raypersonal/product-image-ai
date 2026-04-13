@@ -31,7 +31,7 @@ function HistoryItem({
   return (
     <div
       className={`group relative aspect-square bg-secondary rounded-lg overflow-hidden cursor-pointer transition-all ${
-        isSelected ? 'ring-2 ring-green-500' : 'hover:ring-2 hover:ring-green-500/50'
+        isSelected ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-primary/50'
       }`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -68,7 +68,7 @@ function HistoryItem({
                 e.stopPropagation();
                 onDownload();
               }}
-              className="px-2 py-1 bg-green-600 hover:bg-green-500 rounded text-xs text-white transition-colors"
+              className="px-2 py-1 bg-primary hover:bg-primary-hover rounded text-xs text-white transition-colors"
               title="下载图片"
             >
               📥
@@ -84,7 +84,7 @@ function HistoryItem({
           {image.tags.length > 0 && (
             <div className="flex flex-wrap justify-center gap-0.5 mt-0.5">
               {image.tags.slice(0, 2).map((tag) => (
-                <span key={tag} className="px-1 py-0.5 bg-green-600/50 rounded text-[8px] text-white">
+                <span key={tag} className="px-1 py-0.5 bg-primary/50 rounded text-[8px] text-white">
                   {tag}
                 </span>
               ))}
@@ -238,7 +238,7 @@ export default function ScenePreview({
                 disabled={isGenerating}
                 className={`w-9 h-9 rounded-lg font-medium text-sm transition-all ${
                   generationCount === count
-                    ? 'bg-green-600 text-white shadow-md'
+                    ? 'bg-primary text-white'
                     : 'bg-secondary text-foreground hover:bg-secondary-hover'
                 } disabled:opacity-50 disabled:cursor-not-allowed`}
               >
@@ -253,7 +253,7 @@ export default function ScenePreview({
       <button
         onClick={onGenerate}
         disabled={isGenerating || !prompt}
-        className="w-full py-4 bg-green-600 text-white rounded-xl font-bold text-lg hover:bg-green-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-green-600/20"
+        className="w-full py-3 bg-primary text-white rounded-control font-medium hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         {isGenerating ? (
           <>
@@ -272,7 +272,7 @@ export default function ScenePreview({
       {isGenerating && (
         <div className="w-full h-2 bg-secondary rounded-full overflow-hidden">
           <div
-            className="h-full bg-green-500 transition-all duration-300 ease-out"
+            className="h-full bg-primary transition-all duration-300 ease-out"
             style={{ width: `${Math.max(generationProgress, 5)}%` }}
           />
         </div>
@@ -287,12 +287,12 @@ export default function ScenePreview({
 
       {/* 配置信息和费用预估 */}
       <div className="flex items-center justify-center gap-3 text-xs text-muted flex-wrap">
-        <span className={`px-2 py-0.5 rounded ${hasProductImages ? 'bg-green-600/20 text-green-400' : 'bg-blue-600/20 text-blue-400'}`}>
+        <span className={`px-2 py-0.5 rounded ${hasProductImages ? 'bg-accent-subtle text-accent-text' : 'bg-info/10 text-info'}`}>
           {hasProductImages ? '🖼️ 图生图' : '📝 文生图'}
         </span>
         <span>尺寸: {outputSize}</span>
         <span>|</span>
-        <span className={estimatedCost.isFree ? 'text-green-400' : 'text-yellow-400'}>
+        <span className={estimatedCost.isFree ? 'text-accent-text' : 'text-warning'}>
           {estimatedCost.isFree
             ? '🆓 免费额度'
             : `预估：${estimatedCost.text}（${generationCount}张 × $${estimatedCost.perImage?.toFixed(3)}）`
@@ -311,7 +311,7 @@ export default function ScenePreview({
           {currentBatchImages.map((img, idx) => (
             <div
               key={img.id}
-              className="group relative aspect-square bg-secondary rounded-lg border-2 border-green-600/30 overflow-hidden cursor-pointer"
+              className="group relative aspect-square bg-secondary rounded-lg border-2 border-primary/30 overflow-hidden cursor-pointer"
               onClick={() => setPreviewingImage(img)}
             >
               <img
@@ -340,7 +340,7 @@ export default function ScenePreview({
                     e.stopPropagation();
                     handleDownload(img);
                   }}
-                  className="p-2 bg-green-600 hover:bg-green-500 rounded-lg text-white"
+                  className="p-2 bg-primary hover:bg-primary-hover rounded-lg text-white"
                   title="下载"
                 >
                   📥
@@ -351,7 +351,7 @@ export default function ScenePreview({
                       e.stopPropagation();
                       onTransferToVideo(img);
                     }}
-                    className="p-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-white"
+                    className="p-2 bg-primary hover:bg-primary-hover rounded-lg text-white"
                     title="转视频"
                   >
                     🎬
@@ -364,8 +364,8 @@ export default function ScenePreview({
       ) : (
         // 单图显示
         <div
-          className={`relative aspect-square bg-secondary rounded-xl border-2 transition-colors overflow-hidden ${
-            currentImage ? 'border-green-600/30' : 'border-border'
+          className={`relative aspect-square bg-secondary rounded-card border-2 transition-colors overflow-hidden ${
+            currentImage ? 'border-primary/30' : 'border-border'
           }`}
         >
           {currentImage ? (
@@ -412,14 +412,14 @@ export default function ScenePreview({
           {onTransferToVideo && (
             <button
               onClick={() => onTransferToVideo(currentImage)}
-              className="py-2.5 bg-purple-600/20 text-purple-400 rounded-lg text-sm font-medium hover:bg-purple-600/30 transition-colors flex items-center justify-center gap-1"
+              className="py-2.5 bg-accent-subtle text-accent-text rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
             >
               🎬 转视频
             </button>
           )}
           <button
             onClick={() => setReplacingImage(currentImage)}
-            className="py-2.5 bg-green-600/20 text-green-500 rounded-lg text-sm font-medium hover:bg-green-600/30 transition-colors flex items-center justify-center gap-1"
+            className="py-2.5 bg-accent-subtle text-accent-text rounded-lg text-sm font-medium hover:bg-primary/20 transition-colors flex items-center justify-center gap-1"
           >
             ✅ 替换到主流程
           </button>
@@ -428,11 +428,11 @@ export default function ScenePreview({
 
       {/* 替换成功提示 */}
       {replaceSuccess && (
-        <div className="p-3 bg-green-600/20 rounded-lg text-sm text-green-400 flex items-center justify-between">
+        <div className="p-3 bg-accent-subtle rounded-lg text-sm text-accent-text flex items-center justify-between">
           <span>✓ 已成功替换到批量生成的图片</span>
           <button
             onClick={() => setReplaceSuccess(false)}
-            className="text-green-400 hover:text-green-300"
+            className="text-accent-text hover:text-primary-hover"
           >
             ✕
           </button>
@@ -441,7 +441,7 @@ export default function ScenePreview({
 
       {/* 当前图片的提示词 */}
       {currentImage && (
-        <div className="bg-secondary/50 rounded-lg p-3">
+        <div className="bg-surface rounded-lg p-3">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-muted">使用的提示词:</span>
             <button
@@ -477,12 +477,12 @@ export default function ScenePreview({
         </div>
 
         {history.length === 0 ? (
-          <div className="p-4 bg-secondary/30 rounded-lg text-center text-sm text-muted">
+          <div className="p-4 bg-surface rounded-lg text-center text-sm text-muted">
             生成的图片会保存在这里（最多20张）
           </div>
         ) : (
           /* 移动端横向滚动，桌面端4列网格 */
-          <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-x-visible scrollbar-thin scrollbar-thumb-gray-700">
+          <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-4 md:overflow-x-visible">
             {history.slice(0, 20).map((img, index) => (
               <div key={img.id} className="flex-shrink-0 w-20 h-20 md:w-auto md:h-auto">
                 <HistoryItem
@@ -504,8 +504,8 @@ export default function ScenePreview({
         <div className="border-t border-border pt-4 mt-4">
           {/* 保存结果提示 */}
           {saveResult && (
-            <div className="mb-3 p-3 bg-green-600/10 rounded-lg">
-              <div className="flex items-center gap-2 text-sm text-green-400">
+            <div className="mb-3 p-3 bg-accent-subtle rounded-lg">
+              <div className="flex items-center gap-2 text-sm text-accent-text">
                 <span>✓</span>
                 <span>已保存到：{saveResult.folderName}</span>
               </div>
@@ -520,12 +520,12 @@ export default function ScenePreview({
 
           {/* 保存错误提示 */}
           {saveError && (
-            <div className="mb-3 p-3 bg-red-500/10 rounded-lg flex items-center justify-between">
-              <span className="text-sm text-red-400">❌ {saveError}</span>
+            <div className="mb-3 p-3 bg-error/10 rounded-lg flex items-center justify-between">
+              <span className="text-sm text-error">❌ {saveError}</span>
               {onClearSaveError && (
                 <button
                   onClick={onClearSaveError}
-                  className="text-xs text-red-400 hover:text-red-300"
+                  className="text-xs text-error hover:text-error/80"
                 >
                   ✕
                 </button>
@@ -554,7 +554,7 @@ export default function ScenePreview({
       {/* 图片预览模态框 */}
       {previewingImage && (
         <div
-          className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
           onClick={() => setPreviewingImage(null)}
         >
           <div className="relative max-w-4xl max-h-full" onClick={(e) => e.stopPropagation()}>
@@ -593,7 +593,7 @@ export default function ScenePreview({
                 </div>
                 <button
                   onClick={() => handleDownload(previewingImage)}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-500 transition-colors"
+                  className="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium hover:bg-primary-hover transition-colors"
                 >
                   📥 下载图片
                 </button>
